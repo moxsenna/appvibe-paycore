@@ -6,7 +6,7 @@ export const webhookRoutes = new Hono<PayCoreHonoEnv>();
 
 webhookRoutes.post('/duitku', async (c) => {
   const rawBody = c.get('rawBody') ?? '';
-  const service = new WebhookService(c.get('env'), c.get('supabase'), c.get('logger'));
+  const service = new WebhookService(c.get('env'), c.get('db'), c.get('logger'));
   const result = await service.handleDuitkuCallback(rawBody);
 
   return c.json(

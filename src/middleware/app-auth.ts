@@ -6,6 +6,7 @@ import {
   timingSafeEqual,
 } from '../lib/crypto.ts';
 import { Errors } from '../lib/errors.ts';
+import { getAppBySlug } from '../db/repositories/apps-repository.ts';
 import { assertTimestampFresh } from '../lib/time.ts';
 import type { PayCoreHonoEnv } from '../types/hono.ts';
 
@@ -47,16 +48,9 @@ export const appAuthMiddleware = createMiddleware<PayCoreHonoEnv>(async (c, next
     throw Errors.unauthorized('Invalid request signature');
   }
 
-  const supabase = c.get('supabase');
-  const { data: appRow, error } = await supabase
-    .from('apps')
-    .select('id, app_id, status')
-    .eq('app_id', appSlug)
-    .maybeSingle();
+  const db = c.get('db');
+  const appRow = await getAppBySlug(db, appSlug);
 
-  if (error) {
-    throw Errors.internal('Failed to resolve app');
-  }
   if (!appRow || appRow.status !== 'active') {
     throw Errors.forbidden('App is not active');
   }

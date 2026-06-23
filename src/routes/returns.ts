@@ -1,4 +1,6 @@
 import { Hono } from 'hono';
+import { getAllowedReturnUrls } from '../db/repositories/apps-repository.ts';
+import { getOrderReturnContext } from '../db/repositories/orders-repository.ts';
 import { Errors } from '../lib/errors.ts';
 import type { PayCoreHonoEnv } from '../types/hono.ts';
 
@@ -28,32 +30,15 @@ function isReturnUrlAllowed(returnUrl: string, allowed: unknown): boolean {
 
 returnRoutes.get('/:order_id', async (c) => {
   const orderId = c.req.param('order_id');
-  const supabase = c.get('supabase');
+  const db = c.get('db');
 
-  const { data: order, error } = await supabase
-    .from('payment_orders')
-    .select('order_id, return_url, app_id')
-    .eq('order_id', orderId)
-    .maybeSingle();
-
-  if (error) {
-    throw Errors.internal('Failed to load order');
-  }
+  const order = await getOrderReturnContext(db, orderId);
   if (!order) {
     throw Errors.notFound('Order not found');
   }
 
-  const { data: app, error: appError } = await supabase
-    .from('apps')
-    .select('allowed_return_urls')
-    .eq('id', order.app_id)
-    .maybeSingle();
-
-  if (appError) {
-    throw Errors.internal('Failed to load app');
-  }
-
-  if (!app || !isReturnUrlAllowed(order.return_url, app.allowed_return_urls)) {
+  const allowed = await getAllowedReturnUrls(db, order.app_id);
+  if (!isReturnUrlAllowed(order.return_url, allowed)) {
     throw Errors.forbidden('Return URL is not allowlisted for this app');
   }
 

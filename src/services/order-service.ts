@@ -1,34 +1,26 @@
 import { sha256Hex } from '../lib/crypto.ts';
 import { Errors } from '../lib/errors.ts';
-import {
-  assertIdempotencyOutcome,
-  mapIdempotencyRpcRow,
-} from '../lib/idempotency.ts';
+import { assertIdempotencyOutcome } from '../lib/idempotency.ts';
 import type { PayCoreLogger } from '../lib/logger.ts';
 import { encryptPii } from '../lib/pii.ts';
 import { generateOrderId } from '../lib/order-id.ts';
-import type { PayCoreSupabase } from '../lib/supabase.ts';
+import { msToIso, nowMs } from '../lib/time.ts';
+import type { PayCoreDb } from '../db/index.ts';
+import { getAppByUuid, getActiveMerchantProfile } from '../db/repositories/apps-repository.ts';
+import {
+  completeIdempotency,
+  reserveIdempotency,
+} from '../db/repositories/idempotency-repository.ts';
+import {
+  getOrderForApp,
+  insertPaymentOrder,
+  updateOrderCheckout,
+} from '../db/repositories/orders-repository.ts';
 import { createDuitkuAdapter } from '../providers/duitku.ts';
 import type { CreateOrderRequest } from '../schemas/order.ts';
 import type { PayCoreEnv } from '../types/env.ts';
 
 const ORDER_EXPIRY_MINUTES = 24 * 60;
-
-interface AppRow {
-  id: string;
-  app_id: string;
-  order_prefix: string;
-  default_merchant_profile_id: string | null;
-  allowed_return_urls: unknown;
-  status: string;
-}
-
-interface MerchantProfileRow {
-  id: string;
-  profile_key: string;
-  provider: string;
-  merchant_code: string;
-}
 
 export interface CreateOrderParams {
   appUuid: string;
@@ -53,8 +45,8 @@ function returnUrlAllowed(returnUrl: string, allowed: unknown): boolean {
   for (const entry of allowed) {
     if (typeof entry !== 'string') continue;
     try {
-      const prefix = new URL(entry);
-      if (prefix.origin === target.origin && target.pathname.startsWith(prefix.pathname)) {
+      const allowedUrl = new URL(entry);
+      if (allowedUrl.origin === target.origin && target.pathname.startsWith(allowedUrl.pathname)) {
         return true;
       }
     } catch {
@@ -67,48 +59,26 @@ function returnUrlAllowed(returnUrl: string, allowed: unknown): boolean {
 export class OrderService {
   constructor(
     private readonly env: PayCoreEnv,
-    private readonly db: PayCoreSupabase,
+    private readonly db: PayCoreDb,
     private readonly log: PayCoreLogger,
   ) {}
 
   async createOrder(params: CreateOrderParams): Promise<ServiceJsonResult> {
     const requestHash = await sha256Hex(params.requestBodyRaw);
-
-    const { data: reserveRows, error: reserveError } = await this.db.rpc(
-      'paycore_reserve_idempotency',
-      {
-        p_app_id: params.appUuid,
-        p_key: params.idempotencyKey,
-        p_request_hash: requestHash,
-      },
+    const reserve = await reserveIdempotency(
+      this.db,
+      params.appUuid,
+      params.idempotencyKey,
+      requestHash,
     );
-
-    if (reserveError) {
-      this.log.error('idempotency_reserve_failed', { error: reserveError.message });
-      throw Errors.internal('Idempotency reserve failed');
-    }
-
-    const reserveRow = Array.isArray(reserveRows) ? reserveRows[0] : reserveRows;
-    const reserve = mapIdempotencyRpcRow({
-      outcome: String(reserveRow?.outcome ?? 'reserved_new'),
-      payment_order_id:
-        reserveRow?.payment_order_id === null || reserveRow?.payment_order_id === undefined
-          ? null
-          : String(reserveRow.payment_order_id),
-      response_body:
-        reserveRow?.response_body && typeof reserveRow.response_body === 'object'
-          ? (reserveRow.response_body as Record<string, unknown>)
-          : null,
-    });
-
     assertIdempotencyOutcome(reserve);
 
     if (reserve.outcome === 'replay' && reserve.responseBody) {
       return { status: 200, body: reserve.responseBody };
     }
 
-    const app = await this.loadApp(params.appUuid);
-    if (app.status !== 'active') {
+    const app = await getAppByUuid(this.db, params.appUuid);
+    if (!app || app.status !== 'active') {
       throw Errors.forbidden('App is not active');
     }
 
@@ -116,17 +86,19 @@ export class OrderService {
       throw Errors.validation('return_url is not allowlisted for this app');
     }
 
-    const merchant = await this.resolveMerchantProfile(
-      app.default_merchant_profile_id,
-      params.body.merchant_profile_id,
-    );
-
+    const merchant = await getActiveMerchantProfile(this.db, {
+      profileKey: params.body.merchant_profile_id,
+      defaultId: app.default_merchant_profile_id,
+    });
+    if (!merchant) {
+      throw Errors.validation('Merchant profile not found');
+    }
     if (merchant.provider !== 'duitku') {
       throw Errors.validation('Unsupported payment provider');
     }
 
     const orderId = generateOrderId(app.order_prefix);
-    const expiresAt = new Date(Date.now() + ORDER_EXPIRY_MINUTES * 60_000).toISOString();
+    const expiresAtMs = nowMs() + ORDER_EXPIRY_MINUTES * 60_000;
 
     const nameEnc = await encryptPii(params.body.customer.name, this.env.PAYCORE_ENCRYPTION_KEY);
     const emailEnc = await encryptPii(params.body.customer.email, this.env.PAYCORE_ENCRYPTION_KEY);
@@ -134,9 +106,9 @@ export class OrderService {
       ? await encryptPii(params.body.customer.phone, this.env.PAYCORE_ENCRYPTION_KEY)
       : null;
 
-    const { data: inserted, error: insertError } = await this.db
-      .from('payment_orders')
-      .insert({
+    let orderUuid: string;
+    try {
+      orderUuid = await insertPaymentOrder(this.db, {
         order_id: orderId,
         app_id: app.id,
         merchant_profile_id: merchant.id,
@@ -145,28 +117,23 @@ export class OrderService {
         description: params.body.description,
         amount: params.body.amount,
         currency: params.body.currency,
-        payment_status: 'created',
-        fulfillment_status: 'pending',
         provider: merchant.provider,
         return_url: params.body.return_url,
         customer_name_encrypted: nameEnc,
         customer_email_encrypted: emailEnc,
         customer_phone_encrypted: phoneEnc,
         fulfillment_data: params.body.fulfillment_data ?? {},
-        expires_at: expiresAt,
-      })
-      .select('id')
-      .single();
-
-    if (insertError) {
-      if (insertError.code === '23505') {
+        expires_at_ms: expiresAtMs,
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (msg.includes('UNIQUE') || msg.includes('unique')) {
         throw Errors.conflict('external_order_id already exists for this app');
       }
-      this.log.error('order_insert_failed', { error: insertError.message });
+      this.log.error('order_insert_failed', { error: msg });
       throw Errors.internal('Failed to create order');
     }
 
-    const orderUuid = String(inserted.id);
     const adapter = createDuitkuAdapter(this.env);
     const paycoreReturnUrl = `${this.env.PAYCORE_PUBLIC_BASE_URL.replace(/\/+$/, '')}/return/${orderId}`;
     const callbackUrl = `${this.env.PAYCORE_PUBLIC_BASE_URL.replace(/\/+$/, '')}/webhooks/duitku`;
@@ -195,22 +162,15 @@ export class OrderService {
         order_id: orderId,
         message: err instanceof Error ? err.message : 'unknown',
       });
-      await this.db
-        .from('payment_orders')
-        .update({ payment_status: 'create_failed', updated_at: new Date().toISOString() })
-        .eq('id', orderUuid);
+      await updateOrderCheckout(this.db, orderUuid, { payment_status: 'create_failed' });
     }
 
     if (paymentStatus === 'pending') {
-      await this.db
-        .from('payment_orders')
-        .update({
-          payment_status: 'pending',
-          checkout_url: checkoutUrl,
-          provider_reference: providerReference,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', orderUuid);
+      await updateOrderCheckout(this.db, orderUuid, {
+        payment_status: 'pending',
+        checkout_url: checkoutUrl,
+        provider_reference: providerReference,
+      });
     }
 
     const responseBody: Record<string, unknown> = {
@@ -220,106 +180,26 @@ export class OrderService {
       fulfillment_status: 'pending',
       provider: merchant.provider,
       checkout_url: checkoutUrl,
-      expires_at: expiresAt,
+      expires_at: msToIso(expiresAtMs),
     };
 
-    const { error: completeError } = await this.db.rpc('paycore_complete_idempotency', {
-      p_app_id: params.appUuid,
-      p_key: params.idempotencyKey,
-      p_payment_order_id: orderUuid,
-      p_response_body: responseBody,
-    });
-
-    if (completeError) {
-      this.log.error('idempotency_complete_failed', { error: completeError.message });
-    }
+    await completeIdempotency(
+      this.db,
+      params.appUuid,
+      params.idempotencyKey,
+      orderUuid,
+      responseBody,
+    );
 
     const status = paymentStatus === 'create_failed' ? 502 : 201;
     return { status, body: responseBody };
   }
 
   async getOrderForApp(orderId: string, appUuid: string): Promise<Record<string, unknown>> {
-    const { data, error } = await this.db
-      .from('payment_orders')
-      .select(
-        'order_id, external_order_id, payment_status, fulfillment_status, provider, amount, currency, checkout_url, expires_at, paid_at',
-      )
-      .eq('order_id', orderId)
-      .eq('app_id', appUuid)
-      .maybeSingle();
-
-    if (error) {
-      throw Errors.internal('Failed to load order');
-    }
-    if (!data) {
+    const order = await getOrderForApp(this.db, orderId, appUuid);
+    if (!order) {
       throw Errors.notFound('Order not found');
     }
-
-    return {
-      order_id: data.order_id,
-      external_order_id: data.external_order_id,
-      payment_status: data.payment_status,
-      fulfillment_status: data.fulfillment_status,
-      provider: data.provider,
-      amount: Number(data.amount),
-      currency: data.currency,
-      checkout_url: data.checkout_url,
-      expires_at: data.expires_at,
-      paid_at: data.paid_at,
-    };
-  }
-
-  private async loadApp(appUuid: string): Promise<AppRow> {
-    const { data, error } = await this.db
-      .from('apps')
-      .select('id, app_id, order_prefix, default_merchant_profile_id, allowed_return_urls, status')
-      .eq('id', appUuid)
-      .maybeSingle();
-
-    if (error || !data) {
-      throw Errors.notFound('App not found');
-    }
-
-    return {
-      id: String(data.id),
-      app_id: String(data.app_id),
-      order_prefix: String(data.order_prefix),
-      default_merchant_profile_id:
-        data.default_merchant_profile_id === null
-          ? null
-          : String(data.default_merchant_profile_id),
-      allowed_return_urls: data.allowed_return_urls,
-      status: String(data.status),
-    };
-  }
-
-  private async resolveMerchantProfile(
-    defaultId: string | null,
-    profileKey?: string,
-  ): Promise<MerchantProfileRow> {
-    let query = this.db
-      .from('merchant_profiles')
-      .select('id, profile_key, provider, merchant_code')
-      .eq('status', 'active');
-
-    if (profileKey) {
-      query = query.eq('profile_key', profileKey);
-    } else if (defaultId) {
-      query = query.eq('id', defaultId);
-    } else {
-      throw Errors.validation('merchant_profile_id is required');
-    }
-
-    const { data, error } = await query.maybeSingle();
-    if (error || !data) {
-      throw Errors.validation('Merchant profile not found');
-    }
-
-    return {
-      id: String(data.id),
-      profile_key: String(data.profile_key),
-      provider: String(data.provider),
-      merchant_code: String(data.merchant_code),
-    };
+    return order;
   }
 }

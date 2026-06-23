@@ -3,8 +3,6 @@ import type { PayCoreEnv } from '../types/env.ts';
 
 const envSchema = z.object({
   ENVIRONMENT: z.string().min(1),
-  SUPABASE_URL: z.string().url(),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(20),
   SENTRY_DSN: z.string().optional(),
   DUITKU_BASE_URL: z.string().url(),
   DUITKU_MERCHANT_CODE: z.string().min(1),

@@ -1,7 +1,12 @@
+import type { D1Database, Queue } from '@cloudflare/workers-types';
+import type { FulfillmentQueueMessage } from './queue.ts';
+
 export interface PayCoreEnv {
   ENVIRONMENT: string;
-  SUPABASE_URL: string;
-  SUPABASE_SERVICE_ROLE_KEY: string;
+  DB: D1Database;
+  FULFILLMENT_QUEUE: Queue<FulfillmentQueueMessage>;
+  DEAD_LETTER_QUEUE: Queue<FulfillmentQueueMessage>;
+
   SENTRY_DSN?: string;
 
   DUITKU_BASE_URL: string;
@@ -18,21 +23,6 @@ export interface PayCoreEnv {
   NARRAZA_WEBHOOK_SECRET: string;
 
   PAYCORE_ADMIN_DEV_TOKEN?: string;
-
-  FULFILLMENT_QUEUE: Queue<FulfillmentQueueMessage>;
-  DEAD_LETTER_QUEUE: Queue<FulfillmentQueueMessage>;
 }
 
-export interface FulfillmentQueueMessage {
-  deliveryId: string;
-  eventId: string;
-  paymentOrderId: string;
-  appId: string;
-  attemptNumber: number;
-}
-
-export type AppCredentials = {
-  keyId: string;
-  secret: string;
-  webhookSecret: string;
-};
+export type { FulfillmentQueueMessage };

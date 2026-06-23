@@ -24,18 +24,3 @@ export function assertIdempotencyOutcome(result: IdempotencyReserveResult): void
     );
   }
 }
-
-
-/** Normalize Supabase RPC row into service result. */
-export function mapIdempotencyRpcRow(row: {
-  outcome: string;
-  payment_order_id: string | null;
-  response_body: Record<string, unknown> | null;
-}): IdempotencyReserveResult {
-  const outcome = row.outcome as IdempotencyReserveOutcome;
-  return {
-    outcome,
-    paymentOrderId: row.payment_order_id,
-    responseBody: row.response_body,
-  };
-}

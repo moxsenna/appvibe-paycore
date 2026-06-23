@@ -22,7 +22,7 @@ describe('app request signing', () => {
   });
 
   it('rejects expired timestamp', () => {
-    expect(() => assertTimestampFresh('2000-01-01T00:00:00Z')).toThrow('Timestamp expired');
+    expect(() => assertTimestampFresh('2000-01-01T00:00:00Z')).toThrow('Timestamp outside allowed skew');
   });
 });
 

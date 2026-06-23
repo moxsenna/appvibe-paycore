@@ -1,27 +1,27 @@
 # Architecture
 
-## Three status dimensions
+## Persistence
 
-1. **payment_status** — provider callback result  
-2. **fulfillment_status** — order-level app fulfillment summary  
-3. **delivery_status** — row in `fulfillment_deliveries` (source of truth for retry)
+**Cloudflare D1 (SQLite)** stores all PayCore transactional data. Timestamps are **Unix milliseconds** (`INTEGER`). JSON columns are `TEXT`.
 
-## Retry path
+No Supabase, no PostgreSQL RPC. Atomic behavior uses:
 
-```text
-fulfillment_deliveries.next_retry_at <= now()
-  AND delivery_status IN (queued, failed, pending)
-  OR processing with claimed_at older than 15m
-→ paycore_claim_fulfillment_delivery
-→ queue message { deliveryId, eventId, attemptNumber }
-→ processQueueMessage → markDeliveryOutcome
-```
+- `INSERT OR IGNORE` + unique constraints (webhooks, idempotency)
+- Conditional `UPDATE` + `meta.changes` (delivery claim)
+- `db.batch()` for paired order/fulfillment updates
 
-`event_id` and `deliveryId` stay constant across retries; only `attempt_number` increases.
+## Status layers
 
-## RPC
+| Layer | Field | Meaning |
+|-------|-------|---------|
+| Payment | `payment_status` | Provider callback |
+| Fulfillment (order) | `fulfillment_status` | Aggregate app outcome |
+| Delivery (row) | `delivery_status` | Retry source of truth |
 
-- `paycore_claim_fulfillment_delivery` — `FOR UPDATE`, terminal states rejected  
-- `paycore_list_deliveries_due_retry` — cron candidate list  
+## Fulfillment retry
 
-Migration: `migrations/004_fulfillment_delivery_hardening.sql`
+Same `deliveryId` and `event_id` for all attempts. Claim before HTTP dispatch. Cron lists due rows from `fulfillment_deliveries` only.
+
+## Not in this phase
+
+Duitku `transactionStatus` inquiry reconciliation.

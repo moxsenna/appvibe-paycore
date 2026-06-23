@@ -1,48 +1,30 @@
-import type { PayCoreSupabase } from '../lib/supabase.ts';
+import type { PayCoreDb } from '../db/index.ts';
+import {
+  insertAuditLog,
+  type AuditActorType,
+  type AuditEntryInput,
+} from '../db/repositories/audit-repository.ts';
 import type { PayCoreLogger } from '../lib/logger.ts';
 
-export type AuditActorType = 'system' | 'app' | 'admin' | 'provider';
+export type { AuditActorType };
 
-export interface AuditEntryInput {
-  actorType: AuditActorType;
-  actorId?: string | null;
-  action: string;
-  entityType: string;
-  entityId: string;
-  metadata?: Record<string, unknown>;
-}
-
-export async function writeAudit(
-  db: PayCoreSupabase,
-  input: AuditEntryInput,
-): Promise<void> {
-  const { error } = await db.from('audit_logs').insert({
-    actor_type: input.actorType,
-    actor_id: input.actorId ?? null,
-    action: input.action,
-    entity_type: input.entityType,
-    entity_id: input.entityId,
-    metadata: input.metadata ?? {},
-  });
-  if (error) {
-    throw new Error(`audit insert failed: ${error.message}`);
-  }
+export async function writeAudit(db: PayCoreDb, input: AuditEntryInput): Promise<void> {
+  await insertAuditLog(db, input);
 }
 
 export class AuditService {
   constructor(
-    private readonly db: PayCoreSupabase,
+    private readonly db: PayCoreDb,
     private readonly log: PayCoreLogger,
   ) {}
 
-  async record(entry: AuditEntryInput): Promise<void> {
+  async record(input: AuditEntryInput): Promise<void> {
     try {
-      await writeAudit(this.db, entry);
+      await insertAuditLog(this.db, input);
     } catch (err) {
-      this.log.error('audit_log_insert_failed', {
-        action: entry.action,
-        entity_id: entry.entityId,
-        message: err instanceof Error ? err.message : 'unknown',
+      this.log.error('audit_insert_failed', {
+        action: input.action,
+        error: err instanceof Error ? err.message : 'unknown',
       });
     }
   }

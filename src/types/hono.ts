@@ -1,5 +1,5 @@
+import type { PayCoreDb } from '../db/index.ts';
 import type { PayCoreLogger } from '../lib/logger.ts';
-import type { PayCoreSupabase } from '../lib/supabase.ts';
 import type { PayCoreEnv } from './env.ts';
 
 export type AppAuthContext = {
@@ -11,7 +11,7 @@ export type AppAuthContext = {
 export type AppVariables = {
   requestId: string;
   env: PayCoreEnv;
-  supabase: PayCoreSupabase;
+  db: PayCoreDb;
   logger: PayCoreLogger;
   rawBody: string;
   appAuth?: AppAuthContext;

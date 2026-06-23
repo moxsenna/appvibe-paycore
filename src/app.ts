@@ -2,7 +2,6 @@ import { Hono } from 'hono';
 import { createMiddleware } from 'hono/factory';
 import { validateEnv } from './config/env.ts';
 import { createLogger } from './lib/logger.ts';
-import { createSupabaseAdmin } from './lib/supabase.ts';
 import {
   appAuthMiddleware,
   captureRawBodyMiddleware,
@@ -21,7 +20,7 @@ const bootstrapMiddleware = createMiddleware<PayCoreHonoEnv>(async (c, next) => 
   const env = validateEnv(c.env);
   const requestId = c.get('requestId');
   c.set('env', env);
-  c.set('supabase', createSupabaseAdmin(env));
+  c.set('db', env.DB);
   c.set('logger', createLogger({ request_id: requestId, service: 'paycore' }));
   await next();
 });

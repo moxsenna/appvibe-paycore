@@ -6,6 +6,12 @@ compatibility_flags = ["nodejs_compat"]
 [vars]
 ENVIRONMENT = "development"
 
+[[d1_databases]]
+binding = "DB"
+database_name = "paycore-staging"
+database_id = "local-paycore-dev"
+migrations_dir = "migrations"
+
 [[queues.producers]]
 queue = "paycore-fulfillment"
 binding = "FULFILLMENT_QUEUE"
@@ -33,12 +39,18 @@ crons = ["0 2 * * *"]
 name = "appvibe-paycore-staging"
 vars = { ENVIRONMENT = "staging" }
 
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "paycore-staging"
+database_id = "7b5ceed8-090e-41d4-bf79-4d919c4b59c5"
+migrations_dir = "migrations"
+
 [[env.staging.queues.producers]]
 queue = "paycore-fulfillment-staging"
 binding = "FULFILLMENT_QUEUE"
 
 [[env.staging.queues.producers]]
-queue = "paycore-dead-letter-staging"
+queue = "paycore-dlq-staging"
 binding = "DEAD_LETTER_QUEUE"
 
 [[env.staging.queues.consumers]]
@@ -46,10 +58,10 @@ queue = "paycore-fulfillment-staging"
 max_batch_size = 10
 max_batch_timeout = 5
 max_retries = 3
-dead_letter_queue = "paycore-dead-letter-staging"
+dead_letter_queue = "paycore-dlq-staging"
 
 [[env.staging.queues.consumers]]
-queue = "paycore-dead-letter-staging"
+queue = "paycore-dlq-staging"
 max_batch_size = 5
 max_batch_timeout = 30
 
@@ -59,6 +71,12 @@ crons = ["0 2 * * *"]
 [env.production]
 name = "appvibe-paycore"
 vars = { ENVIRONMENT = "production" }
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "paycore-production"
+database_id = "REPLACE_WITH_PRODUCTION_D1_ID"
+migrations_dir = "migrations"
 
 [[env.production.queues.producers]]
 queue = "paycore-fulfillment"

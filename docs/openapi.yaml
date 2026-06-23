@@ -1,0 +1,564 @@
+openapi: 3.1.0
+info:
+  title: AppVibe PayCore API
+  version: 0.1.0
+  description: |
+    Central payment hub for AppVibe products. Consumer apps call `/v1/orders` with HMAC app auth.
+    Duitku callbacks hit `/webhooks/duitku` only. PayCore dispatches `payment.succeeded` to each app's `webhook_url`.
+
+    **Integration docs:** `docs/integration-guide.md`  
+    **Staging base:** `https://pay-staging.appvibe.biz.id`  
+    **Production base:** `https://pay.appvibe.biz.id`
+
+servers:
+  - url: https://pay-staging.appvibe.biz.id
+    description: Staging
+  - url: https://pay.appvibe.biz.id
+    description: Production
+
+tags:
+  - name: Health
+  - name: Orders
+    description: App-authenticated order APIs (Narraza, Siklusio, TEKAD, …)
+  - name: Returns
+    description: Browser redirect after checkout (UX only)
+  - name: Webhooks
+    description: Provider callbacks (Duitku only — not for consumer apps)
+  - name: Admin
+    description: Operator APIs (admin HMAC)
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Service health
+      security: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /v1/orders:
+    post:
+      tags: [Orders]
+      summary: Create payment order
+      description: |
+        Creates a global `order_id`, registers with Duitku, returns `checkout_url`.
+        Requires `Idempotency-Key`. Signature canonical:
+        `{timestamp}.{METHOD}.{path}.{sha256(raw_body)}`
+      security:
+        - PayCoreAppAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PayCoreApp'
+        - $ref: '#/components/parameters/PayCoreKeyId'
+        - $ref: '#/components/parameters/PayCoreTimestamp'
+        - $ref: '#/components/parameters/PayCoreSignature'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequest'
+      responses:
+        '201':
+          description: Order created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateOrderResponse'
+        '200':
+          description: Idempotent replay
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateOrderResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: Idempotency conflict or duplicate external_order_id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '502':
+          description: Duitku create failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/orders/{order_id}:
+    get:
+      tags: [Orders]
+      summary: Get order status for app
+      security:
+        - PayCoreAppAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PayCoreApp'
+        - $ref: '#/components/parameters/PayCoreKeyId'
+        - $ref: '#/components/parameters/PayCoreTimestamp'
+        - $ref: '#/components/parameters/PayCoreSignature'
+        - name: order_id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: NAR-20260624-8H2KQ
+      responses:
+        '200':
+          description: Order status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderStatusResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /return/{order_id}:
+    get:
+      tags: [Returns]
+      summary: Redirect user to app return_url
+      description: Not proof of payment. App must fulfill from PayCore webhook event only.
+      security: []
+      parameters:
+        - name: order_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Redirect to allowlisted return_url with `order_id` query param
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /webhooks/duitku:
+    post:
+      tags: [Webhooks]
+      summary: Duitku payment callback
+      description: |
+        **Duitku only.** Consumer applications must not call this endpoint.
+        Accepts `application/x-www-form-urlencoded` or JSON per Duitku docs.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DuitkuCallbackPayload'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DuitkuCallbackPayload'
+      responses:
+        '200':
+          description: Processed (including duplicate / invalid signature outcomes in body)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  outcome:
+                    type: string
+                    enum:
+                      - paid
+                      - already_paid
+                      - duplicate
+                      - invalid_signature
+                      - ignored
+                      - failed
+
+  /admin/orders:
+    get:
+      tags: [Admin]
+      summary: List orders (admin)
+      security:
+        - PayCoreAdminAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AdminTimestamp'
+        - $ref: '#/components/parameters/AdminSignature'
+        - name: app_id
+          in: query
+          schema:
+            type: string
+        - name: payment_status
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Order list
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /admin/orders/{order_id}:
+    get:
+      tags: [Admin]
+      summary: Order detail with events and deliveries
+      security:
+        - PayCoreAdminAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AdminTimestamp'
+        - $ref: '#/components/parameters/AdminSignature'
+        - name: order_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Detail
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /admin/orders/{order_id}/retry-fulfillment:
+    post:
+      tags: [Admin]
+      summary: Re-enqueue fulfillment delivery
+      security:
+        - PayCoreAdminAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AdminTimestamp'
+        - $ref: '#/components/parameters/AdminSignature'
+        - name: order_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Retry scheduled
+
+  /admin/orders/{order_id}/manual-review:
+    post:
+      tags: [Admin]
+      summary: Mark order for manual review
+      security:
+        - PayCoreAdminAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AdminTimestamp'
+        - $ref: '#/components/parameters/AdminSignature'
+        - name: order_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note:
+                  type: string
+      responses:
+        '200':
+          description: Updated
+
+components:
+  securitySchemes:
+    PayCoreAppAuth:
+      type: apiKey
+      in: header
+      name: X-PayCore-Signature
+      description: |
+        HMAC-SHA256 over `{timestamp}.{METHOD}.{path}.{sha256(body)}` with app secret.
+        Also requires X-PayCore-App, X-PayCore-Key-Id, X-PayCore-Timestamp; Idempotency-Key on POST /v1/orders.
+    PayCoreAdminAuth:
+      type: apiKey
+      in: header
+      name: X-PayCore-Admin-Signature
+      description: Admin HMAC per docs/security-model.md
+
+  parameters:
+    PayCoreApp:
+      name: X-PayCore-App
+      in: header
+      required: true
+      schema:
+        type: string
+        example: narraza
+    PayCoreKeyId:
+      name: X-PayCore-Key-Id
+      in: header
+      required: true
+      schema:
+        type: string
+        example: pk_staging_narraza_01
+    PayCoreTimestamp:
+      name: X-PayCore-Timestamp
+      in: header
+      required: true
+      schema:
+        type: string
+        format: date-time
+    PayCoreSignature:
+      name: X-PayCore-Signature
+      in: header
+      required: true
+      schema:
+        type: string
+        example: sha256=abcdef...
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        maxLength: 128
+    AdminTimestamp:
+      name: X-PayCore-Admin-Timestamp
+      in: header
+      required: true
+      schema:
+        type: string
+    AdminSignature:
+      name: X-PayCore-Admin-Signature
+      in: header
+      required: true
+      schema:
+        type: string
+
+  schemas:
+    HealthResponse:
+      type: object
+      required: [status, service, environment]
+      properties:
+        status:
+          type: string
+          example: ok
+        service:
+          type: string
+          example: appvibe-paycore
+        environment:
+          type: string
+          example: staging
+        request_id:
+          type: string
+
+    CreateOrderRequest:
+      type: object
+      required:
+        - external_order_id
+        - product_key
+        - description
+        - amount
+        - customer
+        - return_url
+      properties:
+        external_order_id:
+          type: string
+          maxLength: 128
+        merchant_profile_id:
+          type: string
+          default: appvibe_default
+        product_key:
+          type: string
+        description:
+          type: string
+        amount:
+          type: integer
+          minimum: 1
+        currency:
+          type: string
+          enum: [IDR]
+          default: IDR
+        customer:
+          type: object
+          required: [name, email]
+          properties:
+            name:
+              type: string
+            email:
+              type: string
+              format: email
+            phone:
+              type: string
+        return_url:
+          type: string
+          format: uri
+        fulfillment_data:
+          type: object
+          additionalProperties: true
+
+    CreateOrderResponse:
+      type: object
+      properties:
+        order_id:
+          type: string
+        external_order_id:
+          type: string
+        payment_status:
+          type: string
+          example: pending
+        fulfillment_status:
+          type: string
+          example: pending
+        provider:
+          type: string
+          example: duitku
+        checkout_url:
+          type: string
+          format: uri
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    OrderStatusResponse:
+      type: object
+      properties:
+        order_id:
+          type: string
+        external_order_id:
+          type: string
+        payment_status:
+          type: string
+        fulfillment_status:
+          type: string
+        provider:
+          type: string
+        amount:
+          type: integer
+        currency:
+          type: string
+        checkout_url:
+          type: string
+          format: uri
+          nullable: true
+        expires_at:
+          type: string
+          nullable: true
+        paid_at:
+          type: string
+          nullable: true
+
+    DuitkuCallbackPayload:
+      type: object
+      required: [merchantCode, amount, merchantOrderId, resultCode, signature]
+      properties:
+        merchantCode:
+          type: string
+        amount:
+          oneOf:
+            - type: string
+            - type: number
+        merchantOrderId:
+          type: string
+        resultCode:
+          type: string
+        signature:
+          type: string
+        reference:
+          type: string
+        productDetail:
+          type: string
+
+    PaymentSucceededEvent:
+      description: Outbound webhook PayCore sends to consumer app (not an inbound PayCore route)
+      type: object
+      required: [event_id, event_type, occurred_at, data]
+      properties:
+        event_id:
+          type: string
+        event_type:
+          type: string
+          enum: [payment.succeeded]
+        occurred_at:
+          type: string
+          format: date-time
+        data:
+          type: object
+          properties:
+            order_id:
+              type: string
+            external_order_id:
+              type: string
+            app_id:
+              type: string
+            provider:
+              type: string
+            provider_reference:
+              type: string
+              nullable: true
+            amount:
+              type: integer
+            currency:
+              type: string
+            product_key:
+              type: string
+              nullable: true
+            fulfillment_data:
+              type: object
+            paid_at:
+              type: string
+              format: date-time
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+        request_id:
+          type: string
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid auth
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+x-paycore-outbound-webhook:
+  description: |
+    PayCore POSTs to each app's configured `webhook_url` (e.g. `/internal/payment-events`).
+    Headers: `X-PayCore-Event-Timestamp`, `X-PayCore-Event-Signature` (sha256=...).
+    Body: `PaymentSucceededEvent` schema above.
+    See docs/payment-events.md and docs/integration-guide.md.

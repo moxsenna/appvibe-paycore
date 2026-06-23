@@ -1,0 +1,26 @@
+# Copy to .staging.vars (gitignored). Omit ENVIRONMENT (set in wrangler.toml vars).
+#   npx wrangler secret bulk .staging.secrets --env staging
+# (generate .staging.secrets from .staging.vars without ENVIRONMENT= line)
+# DUITKU_CALLBACK_SECRET = optional; callback MD5 uses DUITKU_API_KEY. Do NOT put callback URL here.
+# Register this URL in Duitku dashboard instead:
+#   https://pay-staging.appvibe.biz.id/webhooks/duitku
+
+ENVIRONMENT=staging
+
+DUITKU_BASE_URL=https://sandbox.duitku.com
+DUITKU_MERCHANT_CODE=
+DUITKU_API_KEY=
+DUITKU_CALLBACK_SECRET=
+
+PAYCORE_PUBLIC_BASE_URL=https://pay-staging.appvibe.biz.id
+
+PAYCORE_INTERNAL_MASTER_KEY=
+PAYCORE_ENCRYPTION_KEY=
+
+NARRAZA_APP_KEY_ID=pk_staging_narraza_01
+NARRAZA_APP_SECRET=
+NARRAZA_WEBHOOK_SECRET=
+
+SENTRY_DSN=
+
+PAYCORE_ADMIN_DEV_TOKEN=

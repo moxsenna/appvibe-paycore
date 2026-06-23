@@ -30,7 +30,7 @@ orderRoutes.post('/orders', async (c) => {
     throw Errors.validation('Invalid order payload', { issues: parsed.error.flatten() });
   }
 
-  const service = new OrderService(c.get('env'), c.get('supabase'), c.get('logger'));
+  const service = new OrderService(c.get('env'), c.get('db'), c.get('logger'));
   const result = await service.createOrder({
     appUuid: appAuth.appUuid,
     idempotencyKey,
@@ -48,7 +48,7 @@ orderRoutes.get('/orders/:order_id', async (c) => {
   }
 
   const orderId = c.req.param('order_id');
-  const service = new OrderService(c.get('env'), c.get('supabase'), c.get('logger'));
+  const service = new OrderService(c.get('env'), c.get('db'), c.get('logger'));
   const order = await service.getOrderForApp(orderId, appAuth.appUuid);
   return c.json(order);
 });
