@@ -14,6 +14,9 @@ const envSchema = z.object({
   NARRAZA_APP_KEY_ID: z.string().min(1),
   NARRAZA_APP_SECRET: z.string().min(8),
   NARRAZA_WEBHOOK_SECRET: z.string().min(8),
+  VAULT_APP_KEY_ID: z.string().min(1),
+  VAULT_APP_SECRET: z.string().min(8),
+  VAULT_WEBHOOK_SECRET: z.string().min(8),
   PAYCORE_ADMIN_DEV_TOKEN: z.string().optional(),
 });
 
@@ -28,10 +31,12 @@ export function validateEnv(raw: PayCoreEnv): PayCoreEnv {
 
 export function resolveAppSecret(env: PayCoreEnv, keyId: string): string | null {
   if (keyId === env.NARRAZA_APP_KEY_ID) return env.NARRAZA_APP_SECRET;
+  if (keyId === env.VAULT_APP_KEY_ID) return env.VAULT_APP_SECRET;
   return null;
 }
 
 export function resolveWebhookSecret(env: PayCoreEnv, secretRef: string): string | null {
   if (secretRef === 'NARRAZA_WEBHOOK_SECRET') return env.NARRAZA_WEBHOOK_SECRET;
+  if (secretRef === 'VAULT_WEBHOOK_SECRET') return env.VAULT_WEBHOOK_SECRET;
   return null;
 }

@@ -22,6 +22,10 @@ export interface PayCoreEnv {
   NARRAZA_APP_SECRET: string;
   NARRAZA_WEBHOOK_SECRET: string;
 
+  VAULT_APP_KEY_ID: string;
+  VAULT_APP_SECRET: string;
+  VAULT_WEBHOOK_SECRET: string;
+
   PAYCORE_ADMIN_DEV_TOKEN?: string;
 }
 
