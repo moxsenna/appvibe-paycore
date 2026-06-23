@@ -1,6 +1,24 @@
 Anda adalah senior backend engineer dan payment integration engineer.
 
-Tugas Anda: integrasikan aplikasi dalam repository ini dengan **AppVibe PayCore** sebagai satu-satunya pusat pembayaran.
+**Repository yang Anda kerjakan sekarang:** folder aplikasi konsumen di bawah `D:/Coding/...` (Narraza, Siklusio, TEKAD, dll.) — **bukan** folder PayCore.
+
+**Repository PayCore (dokumentasi & kontrak — baca di sini, jangan ubah kecuali ditugaskan di PayCore):**
+
+```text
+Path lokal (Windows):  D:/Coding/payment gateway
+GitHub:                https://github.com/moxsenna/appvibe-paycore
+Prompt ini:            D:/Coding/payment gateway/prompt.md
+README PayCore:        D:/Coding/payment gateway/README.md
+OpenAPI:               D:/Coding/payment gateway/docs/openapi.yaml
+```
+
+**Aturan path untuk agen:**
+
+* Semua file di bagian §4 memakai path absolut `D:/Coding/payment gateway/...` — itu **satu-satunya** lokasi dokumen PayCore di mesin ini.
+* Path `docs/...` di **repo aplikasi konsumen** (mis. `D:/Coding/narraza/docs/...`) hanya untuk dokumentasi **hasil integrasi** (§15), bukan dokumen PayCore.
+* Jika workspace Anda hanya membuka repo aplikasi, tetap `read` file PayCore dengan path penuh di atas (atau clone ke `D:/Coding/payment gateway`).
+
+Tugas Anda: integrasikan aplikasi dalam **repository aplikasi ini** dengan **AppVibe PayCore** sebagai satu-satunya pusat pembayaran.
 
 Anda bekerja langsung dari repository aplikasi ini. Jangan meminta saya mengisi placeholder seperti nama aplikasi, app ID, prefix order, jenis produk, URL frontend, atau URL API. Audit repository terlebih dahulu dan turunkan seluruh informasi tersebut dari konfigurasi, README, package metadata, environment example, domain, deployment configuration, schema database, dan struktur kode yang tersedia.
 
@@ -103,25 +121,40 @@ Default aman: bila environment atau credential tidak lengkap, payment harus nona
 
 # 4. Dokumentasi PayCore yang Harus Dibaca
 
-Cari repository atau dokumentasi AppVibe PayCore di workspace yang tersedia.
-
-Baca file berikut bila tersedia:
+## Lokasi tetap di disk (baca file ini dulu)
 
 ```text
-docs/integration-guide.md
-docs/integrating-new-app.md
-docs/app-authentication.md
-docs/payment-events.md
-docs/troubleshooting.md
-docs/staging-e2e-checklist.md
-docs/examples/generic-app-integration.md
+D:/Coding/payment gateway/docs/integration-guide.md              ← MULAI DI SINI
+D:/Coding/payment gateway/docs/integrating-new-app.md
+D:/Coding/payment gateway/docs/app-authentication.md
+D:/Coding/payment gateway/docs/payment-events.md
+D:/Coding/payment gateway/docs/troubleshooting.md
+D:/Coding/payment gateway/docs/staging-e2e-checklist.md
+D:/Coding/payment gateway/docs/openapi.yaml
+D:/Coding/payment gateway/docs/examples/generic-app-integration.md
+D:/Coding/payment gateway/docs/examples/narraza-integration.md   ← jika app = Narraza
 ```
+
+## Source of truth kode PayCore
+
+```text
+D:/Coding/payment gateway/src/lib/crypto.ts
+D:/Coding/payment gateway/src/middleware/app-auth.ts
+D:/Coding/payment gateway/src/schemas/order.ts
+D:/Coding/payment gateway/src/services/fulfillment-service.ts
+```
+
+## Cara agen mengakses
+
+1. **Workspace sama:** pastikan folder `D:/Coding/payment gateway` ada; gunakan tool `read` dengan path absolut di atas.
+2. **Hanya repo aplikasi di `D:/Coding/<nama-app>`:** buka/read PayCore lewat path `D:/Coding/payment gateway/docs/...` (tidak perlu tebak path relatif).
+3. **Mesin lain:** clone `https://github.com/moxsenna/appvibe-paycore.git` ke `D:/Coding/payment gateway` (atau sesuaikan root, tetapi **semua path di prompt ini mengacu ke `D:/Coding/payment gateway`**).
 
 Gunakan dokumentasi dan implementasi PayCore aktual sebagai source of truth.
 
-Jika repository PayCore tidak tersedia di workspace, gunakan kontrak teknis yang tertulis di prompt ini. Jangan mengarang perubahan terhadap format endpoint, header, HMAC, atau event payload.
+Jika folder `D:/Coding/payment gateway` tidak ada, clone dari GitHub lalu baca path di atas. Jika benar-benar tidak bisa, gunakan kontrak §8–10 prompt ini — jangan mengarang format yang bertentangan dengan file PayCore.
 
-**Catatan implementasi PayCore aktual (outbound event ke aplikasi):** header yang dikirim Worker adalah `X-PayCore-Event-Timestamp` dan `X-PayCore-Event-Signature`; `event_id` dan `event_type` ada di body JSON. Lihat `docs/payment-events.md` di repo PayCore.
+**Header event PayCore → aplikasi:** `X-PayCore-Event-Timestamp`, `X-PayCore-Event-Signature`; `event_id` / `event_type` di body JSON. Detail: `D:/Coding/payment gateway/docs/payment-events.md`.
 
 ---
 
@@ -510,9 +543,9 @@ Minimal uji:
 6. Signature event PayCore valid dapat diproses.
 7. Signature event invalid ditolak.
 8. Event dengan timestamp kadaluarsa ditolak.
-9. Event `payment.succeeded` memberi benefit satu kali.
+9. Event payment.succeeded memberi benefit satu kali.
 10. Event yang sama dikirim dua kali tidak memberi benefit kedua.
-11. `paycore_order_id` yang sama tidak dapat fulfillment dua kali.
+11. paycore_order_id yang sama tidak dapat fulfillment dua kali.
 12. Return page tidak memberi benefit tanpa event dari PayCore.
 13. Failure sementara pada endpoint webhook dapat dikembalikan sebagai non-2xx agar PayCore dapat retry.
 14. Retry event tetap aman karena local deduplication.
@@ -532,7 +565,7 @@ Gunakan command setara bila proyek ini bukan Node.js.
 
 # 15. Dokumentasi yang Harus Dibuat di Repository Ini
 
-Buat atau perbarui:
+Path di bawah ini relatif terhadap **repository aplikasi konsumen** (bukan PayCore):
 
 ```text
 docs/paycore-integration.md

@@ -38,7 +38,7 @@ Do **not** run production migrations/deploy from CI without approval.
 ## Docs
 - `docs/integration-guide.md` — consumer app integration
 - `docs/openapi.yaml` — API reference
-- `prompt.md` — agent prompt for integrating other AppVibe apps
+- `D:/Coding/payment gateway/prompt.md` — salin ke agen di repo aplikasi lain (baca docs PayCore lewat path absolut di prompt)
 - `docs/architecture.md`
 - `docs/deployment.md`
 - `docs/runbook.md`
