@@ -1,5 +1,7 @@
 # Duitku integration (PayCore)
 
+
+**Operator checklist (staging):** `docs/duitku-sandbox-setup.md`
 PayCore uses **one** callback domain for all apps. Narraza and other products never expose their own Duitku callback URL.
 
 ## Endpoints (PayCore)
@@ -14,12 +16,14 @@ Implementation: `src/providers/duitku.ts`, `src/services/webhook-service.ts`.
 
 ## Secrets (Worker only)
 
-| Secret ref | Purpose |
-|------------|---------|
-| `DUITKU_*` via `credential_ref` on merchant profile | Merchant code + API key per profile |
-| `DUITKU_BASE_URL` | Sandbox vs production API host |
+| Variable | Purpose |
+|----------|---------|
+| `DUITKU_BASE_URL` | `https://sandbox.duitku.com` (staging) or production host |
+| `DUITKU_MERCHANT_CODE` | Sandbox/live merchant code from Duitku dashboard |
+| `DUITKU_API_KEY` | API key for inquiry + callback MD5 |
+| `DUITKU_CALLBACK_SECRET` | Optional; callback verification uses **API key**, not this field |
 
-Never store API keys in Supabase.
+Never commit API keys. Register callback URL in Duitku dashboard only.
 
 ## MD5 signatures (pure JS)
 
@@ -60,8 +64,7 @@ Same pattern as create payment for the status API body (merchant code, amount, m
 1. Verify MD5 signature before any state change.
 2. Resolve order by `merchantOrderId` (= PayCore `order_id`).
 3. Verify amount matches stored order amount.
-4. Persist raw webhook; apply paid transition via RPC (`paycore_record_webhook_paid`) for idempotency.
-5. Enqueue fulfillment: one `fulfillment_deliveries` row per paid event, stable `event_id`, queue `deliveryId` = row UUID.
+4. Persist raw webhook; apply paid transition via D1 repository (`recordWebhookPaid`) for idempotency.
 
 Duplicate callbacks must return success without second fulfillment (`duplicate` / `already_paid` outcomes).
 

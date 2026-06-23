@@ -49,9 +49,22 @@ export class WebhookService {
       return { httpStatus: 404, outcome: 'order_not_found', orderId: null, internalEventId: null };
     }
 
-    const merchantCode = await getMerchantCode(this.db, order.merchant_profile_id);
-    if (!merchantCode) {
-      throw Errors.internal('Merchant profile missing');
+    const merchantCode = this.env.DUITKU_MERCHANT_CODE;
+    const dbMerchantCode = await getMerchantCode(this.db, order.merchant_profile_id);
+    if (dbMerchantCode && dbMerchantCode !== merchantCode && dbMerchantCode !== 'DUMMY_MERCHANT') {
+      this.log.warn('merchant_code_drift', {
+        db: dbMerchantCode,
+        env: merchantCode,
+        order_id: order.order_id,
+      });
+    }
+    if (payload.merchantCode && payload.merchantCode !== merchantCode) {
+      return {
+        httpStatus: 401,
+        outcome: 'invalid_signature',
+        orderId: order.order_id,
+        internalEventId: null,
+      };
     }
 
     const adapter = createDuitkuAdapter(this.env);

@@ -28,6 +28,8 @@ npm run lint
 
 ## Staging (manual)
 
+**Duitku sandbox:** `docs/duitku-sandbox-setup.md`
+
 1. Create D1 database `paycore-staging` in Cloudflare dashboard.
 2. Set `database_id` in `wrangler.toml` under `[env.staging.d1_databases]`.
 3. `npm run db:migrate:staging`
