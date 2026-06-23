@@ -1,0 +1,84 @@
+name = "appvibe-paycore"
+main = "src/index.ts"
+compatibility_date = "2024-11-12"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+ENVIRONMENT = "development"
+
+[[queues.producers]]
+queue = "paycore-fulfillment"
+binding = "FULFILLMENT_QUEUE"
+
+[[queues.producers]]
+queue = "paycore-dead-letter"
+binding = "DEAD_LETTER_QUEUE"
+
+[[queues.consumers]]
+queue = "paycore-fulfillment"
+max_batch_size = 10
+max_batch_timeout = 5
+max_retries = 3
+dead_letter_queue = "paycore-dead-letter"
+
+[[queues.consumers]]
+queue = "paycore-dead-letter"
+max_batch_size = 5
+max_batch_timeout = 30
+
+[triggers]
+crons = ["0 2 * * *"]
+
+[env.staging]
+name = "appvibe-paycore-staging"
+vars = { ENVIRONMENT = "staging" }
+
+[[env.staging.queues.producers]]
+queue = "paycore-fulfillment-staging"
+binding = "FULFILLMENT_QUEUE"
+
+[[env.staging.queues.producers]]
+queue = "paycore-dead-letter-staging"
+binding = "DEAD_LETTER_QUEUE"
+
+[[env.staging.queues.consumers]]
+queue = "paycore-fulfillment-staging"
+max_batch_size = 10
+max_batch_timeout = 5
+max_retries = 3
+dead_letter_queue = "paycore-dead-letter-staging"
+
+[[env.staging.queues.consumers]]
+queue = "paycore-dead-letter-staging"
+max_batch_size = 5
+max_batch_timeout = 30
+
+[env.staging.triggers]
+crons = ["0 2 * * *"]
+
+[env.production]
+name = "appvibe-paycore"
+vars = { ENVIRONMENT = "production" }
+
+[[env.production.queues.producers]]
+queue = "paycore-fulfillment"
+binding = "FULFILLMENT_QUEUE"
+
+[[env.production.queues.producers]]
+queue = "paycore-dead-letter"
+binding = "DEAD_LETTER_QUEUE"
+
+[[env.production.queues.consumers]]
+queue = "paycore-fulfillment"
+max_batch_size = 10
+max_batch_timeout = 5
+max_retries = 3
+dead_letter_queue = "paycore-dead-letter"
+
+[[env.production.queues.consumers]]
+queue = "paycore-dead-letter"
+max_batch_size = 5
+max_batch_timeout = 30
+
+[env.production.triggers]
+crons = ["0 2 * * *"]
