@@ -24,7 +24,7 @@
 | Callback tidak masuk | URL Duitku salah | Dashboard Duitku | `https://pay-staging.appvibe.biz.id/webhooks/duitku` |
 | Order tetap pending | Callback belum / gagal signature | D1 `payment_events` | Cek MD5 amount string vs Duitku; API key |
 | Paid, kredit tidak naik | Webhook app down / 5xx | D1 `fulfillment_deliveries` status failed | Fix endpoint; PayCore akan retry |
-| Paid, kredit tidak naik | Webhook secret beda | Signature verify gagal di app | Sinkron `PAYCORE_WEBHOOK_SECRET` dengan PayCore |
+| Paid, kredit tidak naik | Webhook secret beda | Signature verify gagal di app | Sinkron AppVibe `PAYCORE_WEBHOOK_SECRET` dengan PayCore `VAULT_WEBHOOK_SECRET` |
 | Kredit naik 2x | Idempotency app lemah | Ledger tanpa unique `event_id` | Unique constraint + `paycore:{order_id}` |
 | Event signature invalid | Body di-parse lalu di-stringify ulang | Bandingkan raw body | Hash raw bytes/string as received |
 | Return URL 403 | `return_url` tidak di allowlist | D1 `apps.allowed_return_urls` | Tambah URL staging/production |
@@ -49,6 +49,12 @@ npx wrangler tail appvibe-paycore-staging --env staging
 ```
 
 Look for: `fulfillment_enqueued`, `fulfillment_claim_skipped`, `duitku_create_failed`, `webhook.*` audit actions.
+
+## AppVibe Vault secret mapping
+
+For `appvibe.biz.id`, PayCore signs fulfillment events with `VAULT_WEBHOOK_SECRET`.
+The AppVibe Pages project verifies the same bytes with `PAYCORE_WEBHOOK_SECRET`.
+Those two values must be identical in the active Cloudflare environments; otherwise PayCore will show `paid` with fulfillment `failed`, and AppVibe D1 will stay `pending`.
 
 ## Escalation
 

@@ -55,6 +55,8 @@ Before using it for real payments, replace bootstrap/sandbox secrets with live p
 
 See `.dev.vars.example`. No Supabase URL or service role.
 
+For the AppVibe Vault app, `VAULT_WEBHOOK_SECRET` must match the AppVibe Pages secret named `PAYCORE_WEBHOOK_SECRET` in `D:/Coding/appvibe.biz.id`. A mismatch causes AppVibe to return `401 invalid_signature` to fulfillment deliveries.
+
 ## Backup
 
 Use Cloudflare D1 export / Time Travel (per account plan) before schema changes. Document restore drills in runbook for incidents.

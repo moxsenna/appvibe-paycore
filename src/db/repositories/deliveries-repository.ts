@@ -169,6 +169,20 @@ export async function ensureDeliveryRowForPaidEvent(
     .first<{ id: string; delivery_status: string }>();
 
   if (existing && !['delivered', 'dead_letter'].includes(existing.delivery_status)) {
+    const now = nowMs();
+    await db
+      .prepare(
+        `UPDATE fulfillment_deliveries SET
+          target_url = ?,
+          request_payload = ?,
+          delivery_status = 'queued',
+          next_retry_at = NULL,
+          claimed_at = NULL,
+          updated_at = ?
+         WHERE id = ? AND delivery_status NOT IN ('delivered', 'dead_letter', 'manual_review')`,
+      )
+      .bind(input.targetUrl, stringifyJson(input.requestPayload), now, existing.id)
+      .run();
     return existing.id;
   }
 
