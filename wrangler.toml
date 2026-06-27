@@ -75,7 +75,7 @@ vars = { ENVIRONMENT = "production" }
 [[env.production.d1_databases]]
 binding = "DB"
 database_name = "paycore-production"
-database_id = "REPLACE_WITH_PRODUCTION_D1_ID"
+database_id = "bdb9a383-3bc1-4da8-bdf0-d497278f5a89"
 migrations_dir = "migrations"
 
 [[env.production.queues.producers]]

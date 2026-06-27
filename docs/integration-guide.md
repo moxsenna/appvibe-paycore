@@ -42,9 +42,9 @@ Your app → grant credit / activate (idempotent) → HTTP 200
 | Environment | Base URL |
 |-------------|----------|
 | **Staging** | `https://pay-staging.appvibe.biz.id` |
-| **Production** | `https://pay.appvibe.biz.id` (not live for new integrations yet) |
+| **Production** | `https://pay.appvibe.biz.id` |
 
-Use **staging** secrets and staging Narraza/API until E2E passes.
+Use **staging** secrets and staging Narraza/API until E2E passes. Production infrastructure is live, but live payment traffic must wait until production Duitku/app secrets replace the bootstrap values.
 
 ---
 
