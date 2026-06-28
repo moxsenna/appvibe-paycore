@@ -125,8 +125,8 @@ export class ReconciliationService {
 
   async reconcileMayarOrders(env: PayCoreEnv): Promise<number> {
     const now = nowMs();
-    // find orders older than 5 minutes, limit to 50 for safety
-    const pendingOrders = await getPendingOrdersByProvider(this.db, 'mayar', now - 5 * 60_000, 50);
+    // find orders older than 5 minutes, limit to 25 for safety
+    const pendingOrders = await getPendingOrdersByProvider(this.db, 'mayar', now - 5 * 60_000, now, 25);
     
     if (pendingOrders.length === 0) return 0;
     

@@ -366,6 +366,7 @@ export async function getPendingOrdersByProvider(
   db: PayCoreDb,
   provider: string,
   olderThanMs: number,
+  nowMsVal: number,
   limit: number
 ): Promise<{ id: string; order_id: string; provider_reference: string | null; merchant_profile_id: string; app_id: string; }[]> {
   const { results } = await db
@@ -373,12 +374,14 @@ export async function getPendingOrdersByProvider(
       `SELECT id, order_id, provider_reference, merchant_profile_id, app_id 
        FROM payment_orders 
        WHERE provider = ? 
+       AND provider_reference IS NOT NULL
        AND payment_status IN ('created', 'pending') 
        AND created_at < ? 
+       AND (expires_at IS NULL OR expires_at > ?)
        ORDER BY created_at ASC 
        LIMIT ?`
     )
-    .bind(provider, olderThanMs, limit)
+    .bind(provider, olderThanMs, nowMsVal, limit)
     .all<{ id: string; order_id: string; provider_reference: string | null; merchant_profile_id: string; app_id: string; }>();
   return (results ?? []).map(r => ({
     id: String(r.id),

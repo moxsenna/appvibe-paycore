@@ -93,7 +93,6 @@ export class OrderService {
     }
 
     const merchant = await getActiveMerchantProfile(this.db, {
-      profileKey: app.default_merchant_profile_id ?? undefined,
       defaultId: app.default_merchant_profile_id ?? undefined,
     });
     if (!merchant) {

@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { MayarAdapter } from '../src/providers/mayar.ts';
+import { WebhookService } from '../src/services/webhook-service.ts';
+import { ReconciliationService } from '../src/services/reconciliation-service.ts';
 import type { PayCoreEnv } from '../src/types/env.ts';
+import { createLogger } from '../src/lib/logger.ts';
 
 function mockEnv(): PayCoreEnv {
   return {
@@ -20,52 +23,160 @@ function mockEnv(): PayCoreEnv {
     VAULT_APP_SECRET: '',
     VAULT_WEBHOOK_SECRET: '',
     DB: {} as PayCoreEnv['DB'],
-    FULFILLMENT_QUEUE: {} as PayCoreEnv['FULFILLMENT_QUEUE'],
+    FULFILLMENT_QUEUE: { send: vi.fn() } as any,
     DEAD_LETTER_QUEUE: {} as PayCoreEnv['DEAD_LETTER_QUEUE'],
   };
 }
 
-describe('Mayar Integration (Webhook & Reconciliation)', () => {
+function createMockDb(scenario: 'success' | 'duplicate' | 'amount_mismatch') {
+  const updates: string[] = [];
+  let insertChanges = scenario === 'duplicate' ? 0 : 1;
+  const orderAmount = scenario === 'amount_mismatch' ? 50000 : 100000;
+  
+  const db = {
+    prepare(sql: string) {
+      return {
+        bind(...values: unknown[]) {
+          return {
+            async first() {
+              if (/SELECT id, order_id, amount, currency/i.test(sql)) {
+                return {
+                  id: 'order_uuid',
+                  order_id: 'VLT-001',
+                  amount: orderAmount,
+                  currency: 'IDR',
+                  payment_status: 'pending',
+                  internal_event_id: null
+                };
+              }
+              if (/SELECT id, order_id, provider_reference FROM payment_orders WHERE provider = 'mayar'/i.test(sql)) {
+                return { id: 'order_uuid', order_id: 'VLT-001', provider_reference: 'INV-12345' };
+              }
+              if (/SELECT id, order_id, provider_reference, merchant_profile_id, app_id/i.test(sql)) {
+                return { id: 'order_uuid', order_id: 'VLT-001', provider_reference: 'INV-12345', merchant_profile_id: 'mp', app_id: 'app' };
+              }
+              if (/SELECT.*FROM merchant_profiles/i.test(sql)) {
+                return { id: 'mp', profile_key: 'mp', provider: 'mayar', merchant_code: 'MC' };
+              }
+              if (/SELECT.*FROM apps/i.test(sql)) {
+                return { id: 'app', app_id: 'test_app' };
+              }
+              return null;
+            },
+            async all() {
+              if (/SELECT id, order_id, provider_reference, merchant_profile_id, app_id/i.test(sql)) {
+                return { results: [{ id: 'order_uuid', order_id: 'VLT-001', provider_reference: 'INV-12345', merchant_profile_id: 'mp', app_id: 'app' }] };
+              }
+              return { results: [] };
+            },
+            async run() {
+              if (/UPDATE/.test(sql)) updates.push(sql);
+              return { meta: { changes: /INSERT/.test(sql) ? insertChanges : 1 } };
+            }
+          };
+        }
+      };
+    },
+    batch: async () => []
+  };
+  return { db, updates };
+}
+
+describe('Mayar Integration', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
 
-  it('validates Mayar callback payload structure without saving PII', async () => {
-    const adapter = new MayarAdapter(mockEnv());
+  it('WebhookService processes valid S2S lookup and queues fulfillment', async () => {
+    const env = mockEnv();
+    const { db, updates } = createMockDb('success');
+    env.DB = db as any;
+
     const fetchMock = vi.fn(async () =>
       Response.json({
         statusCode: '200',
-        data: {
-          id: 'INV-12345',
-          transactionId: 'TRX-999',
-          status: 'PAID',
-          amount: 100000,
-        }
+        data: { id: 'INV-12345', transactionId: 'TRX-999', status: 'PAID', amount: 100000 }
       })
     );
     vi.stubGlobal('fetch', fetchMock);
 
-    const result = await adapter.lookupPaymentStatus({
-      providerReference: 'INV-12345',
-      merchantOrderId: 'VLT-001'
+    const svc = new WebhookService(env.DB, env, createLogger({ service: 'test' }));
+    
+    // Simulate webhook hit
+    const res = await svc.handleMayarWebhook({
+      data: { id: 'INV-12345', status: 'PAID', amount: 100000, transactionId: 'TRX-999' }
     });
 
-    expect(result.paid).toBe(true);
-    expect(result.paidAmount).toBe(100000);
-    expect(result.providerTransactionReference).toBe('TRX-999');
-    
-    const safePayload = {
-      event: 'payment.received',
-      data: {
-        id: result.providerReference,
-        status: result.paid ? 'paid' : 'pending',
-        amount: result.paidAmount,
-        transactionId: result.providerTransactionReference,
-      }
-    };
-    
-    expect(safePayload.data.amount).toBe(100000);
-    expect(safePayload).not.toHaveProperty('customer_name');
+    expect(res.outcome).toBe('paid');
+    expect(res.paymentOrderPublicId).toBe('VLT-001');
+    expect(updates.some(u => /UPDATE payment_orders SET.*payment_status = 'paid'/i.test(u))).toBe(true);
+    expect(env.FULFILLMENT_QUEUE.send).toHaveBeenCalled();
+  });
+
+  it('WebhookService handles duplicate gracefully without requeueing', async () => {
+    const env = mockEnv();
+    const { db, updates } = createMockDb('duplicate');
+    env.DB = db as any;
+
+    const fetchMock = vi.fn(async () =>
+      Response.json({
+        statusCode: '200',
+        data: { id: 'INV-12345', transactionId: 'TRX-999', status: 'PAID', amount: 100000 }
+      })
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const svc = new WebhookService(env.DB, env, createLogger({ service: 'test' }));
+    const res = await svc.handleMayarWebhook({
+      data: { id: 'INV-12345', status: 'PAID', amount: 100000, transactionId: 'TRX-999' }
+    });
+
+    expect(res.outcome).toBe('duplicate');
+    expect(updates.some(u => /UPDATE payment_orders SET.*payment_status = 'paid'/i.test(u))).toBe(false);
+    expect(env.FULFILLMENT_QUEUE.send).not.toHaveBeenCalled();
+  });
+
+  it('WebhookService flags manual_review on amount mismatch', async () => {
+    const env = mockEnv();
+    const { db, updates } = createMockDb('amount_mismatch');
+    env.DB = db as any;
+
+    const fetchMock = vi.fn(async () =>
+      Response.json({
+        statusCode: '200',
+        data: { id: 'INV-12345', transactionId: 'TRX-999', status: 'PAID', amount: 100000 } // real amount 100k, db says 50k
+      })
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const svc = new WebhookService(env.DB, env, createLogger({ service: 'test' }));
+    const res = await svc.handleMayarWebhook({
+      data: { id: 'INV-12345', status: 'PAID', amount: 100000, transactionId: 'TRX-999' }
+    });
+
+    expect(res.outcome).toBe('amount_mismatch');
+    expect(updates.some(u => /UPDATE payment_orders SET payment_status = 'manual_review'/i.test(u))).toBe(true);
+  });
+
+  it('ReconciliationService processes Mayar pending orders', async () => {
+    const env = mockEnv();
+    const { db, updates } = createMockDb('success');
+    env.DB = db as any;
+
+    const fetchMock = vi.fn(async () =>
+      Response.json({
+        statusCode: '200',
+        data: { id: 'INV-12345', transactionId: 'TRX-999', status: 'PAID', amount: 100000 }
+      })
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const svc = new ReconciliationService(env.DB, createLogger({ service: 'test' }));
+    const count = await svc.reconcileMayarOrders(env);
+
+    expect(count).toBe(1);
+    expect(updates.some(u => /UPDATE payment_orders SET.*payment_status = 'paid'/i.test(u))).toBe(true);
+    expect(env.FULFILLMENT_QUEUE.send).toHaveBeenCalled();
   });
 });
