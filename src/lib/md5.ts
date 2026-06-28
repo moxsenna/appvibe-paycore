@@ -1,4 +1,4 @@
-/** Minimal MD5 (RFC 1321) for Duitku API signatures — Workers lack MD5 in Web Crypto. */
+/** Minimal MD5 (RFC 1321) for legacy Duitku V2 signatures. */
 
 function md5cycle(x: number[], k: number[]): void {
   let a = x[0] ?? 0;

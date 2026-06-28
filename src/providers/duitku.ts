@@ -1,6 +1,7 @@
 import {
   duitkuCallbackSignatureMd5,
   duitkuRequestSignatureMd5,
+  hmacSha256Hex,
   timingSafeEqual,
 } from '../lib/crypto.ts';
 import { Errors } from '../lib/errors.ts';
@@ -15,8 +16,30 @@ import type {
   WebhookVerificationResult,
 } from './types.ts';
 
-const CREATE_PATH = '/webapi/api/merchant/v2/inquiry';
+const CREATE_PATH = '/api/merchant/createInvoice';
 const STATUS_PATH = '/webapi/api/merchant/transactionStatus';
+
+function getDuitkuPopBaseUrl(baseUrl: string): string {
+  const normalized = normalizeBaseUrl(baseUrl);
+  if (normalized.includes('sandbox.duitku.com')) {
+    return 'https://api-sandbox.duitku.com';
+  }
+  if (normalized.includes('passport.duitku.com') || normalized.includes('api-prod.duitku.com')) {
+    return 'https://api-prod.duitku.com';
+  }
+  return normalized;
+}
+
+function getDuitkuApiBaseUrl(baseUrl: string): string {
+  const normalized = normalizeBaseUrl(baseUrl);
+  if (normalized.includes('api-sandbox.duitku.com')) {
+    return 'https://sandbox.duitku.com';
+  }
+  if (normalized.includes('api-prod.duitku.com')) {
+    return 'https://passport.duitku.com';
+  }
+  return normalized;
+}
 
 function normalizeBaseUrl(baseUrl: string): string {
   return baseUrl.replace(/\/+$/, '');
@@ -45,17 +68,11 @@ export class DuitkuAdapter implements PaymentProviderAdapter {
   async createPayment(input: CreatePaymentInput): Promise<CreatePaymentResult> {
     const merchantCode = this.env.DUITKU_MERCHANT_CODE;
     const apiKey = this.env.DUITKU_API_KEY;
-    const signature = duitkuRequestSignatureMd5(
-      merchantCode,
-      input.amount,
-      input.merchantOrderId,
-      apiKey,
-    );
+    const timestamp = Date.now();
+    const signature = await hmacSha256Hex(apiKey, `${merchantCode}${timestamp}`);
 
     const body = {
-      merchantCode,
       paymentAmount: input.amount,
-      paymentMethod: 'SP',
       merchantOrderId: input.merchantOrderId,
       productDetails: input.productDetails,
       customerVaName: input.customerName.slice(0, 20),
@@ -64,19 +81,33 @@ export class DuitkuAdapter implements PaymentProviderAdapter {
       callbackUrl: input.callbackUrl,
       returnUrl: input.returnUrl,
       expiryPeriod: input.expiryPeriodMinutes,
-      signature,
+      itemDetails: [
+        {
+          name: input.productDetails.slice(0, 50),
+          price: input.amount,
+          quantity: 1,
+        },
+      ],
     };
 
-    const res = await fetch(`${normalizeBaseUrl(this.env.DUITKU_BASE_URL)}${CREATE_PATH}`, {
+    const popBaseUrl = getDuitkuPopBaseUrl(this.env.DUITKU_BASE_URL);
+
+    const res = await fetch(`${popBaseUrl}${CREATE_PATH}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json; charset=UTF-8',
+        'x-duitku-signature': signature,
+        'x-duitku-timestamp': String(timestamp),
+        'x-duitku-merchantcode': merchantCode,
+      },
       body: JSON.stringify(body),
     });
 
     const json = (await res.json()) as Record<string, unknown>;
     const statusCode = String(json.statusCode ?? '');
     if (!res.ok || statusCode !== '00') {
-      const message = String(json.statusMessage ?? json.Message ?? 'Duitku inquiry failed');
+      const message = String(json.statusMessage ?? json.Message ?? 'Duitku invoice creation failed');
       throw new Error(message);
     }
 
@@ -99,13 +130,20 @@ export class DuitkuAdapter implements PaymentProviderAdapter {
   async verifyWebhook(input: WebhookVerificationInput): Promise<WebhookVerificationResult> {
     const { payload, merchantCode, apiKey } = input;
     const amountStr = callbackAmountString(payload.amount);
-    const expected = duitkuCallbackSignatureMd5(
+    const expectedPop = await hmacSha256Hex(
+      apiKey,
+      `${merchantCode}${amountStr}${payload.merchantOrderId}`,
+    );
+    const expectedLegacy = duitkuCallbackSignatureMd5(
       merchantCode,
       amountStr,
       payload.merchantOrderId,
       apiKey,
     );
-    const valid = timingSafeEqual(expected.toLowerCase(), payload.signature.toLowerCase());
+    const signature = payload.signature.toLowerCase();
+    const valid =
+      timingSafeEqual(expectedPop.toLowerCase(), signature) ||
+      timingSafeEqual(expectedLegacy.toLowerCase(), signature);
     const paid = valid && payload.resultCode === '00';
     const paidAmount = parsePaidAmount(payload.amount);
     const providerReference = payload.reference ?? null;
@@ -130,7 +168,7 @@ export class DuitkuAdapter implements PaymentProviderAdapter {
       this.env.DUITKU_API_KEY,
     );
 
-    const res = await fetch(`${normalizeBaseUrl(this.env.DUITKU_BASE_URL)}${STATUS_PATH}`, {
+    const res = await fetch(`${getDuitkuApiBaseUrl(this.env.DUITKU_BASE_URL)}${STATUS_PATH}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ merchantCode, merchantOrderId, signature }),

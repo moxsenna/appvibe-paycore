@@ -45,6 +45,18 @@ Before using it for real payments, replace bootstrap/sandbox secrets with live p
 - `NARRAZA_APP_SECRET`
 - `NARRAZA_WEBHOOK_SECRET`
 
+Production Duitku must use the POP production host:
+
+```text
+DUITKU_BASE_URL=https://api-prod.duitku.com
+```
+
+Register the production callback URL in the Duitku dashboard:
+
+```text
+https://pay.appvibe.biz.id/webhooks/duitku
+```
+
 ## Bindings required
 
 - `DB` — D1

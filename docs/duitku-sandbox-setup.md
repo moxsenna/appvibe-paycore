@@ -36,14 +36,14 @@ PayCore mengirim `callbackUrl` yang sama saat create payment; dashboard Duitku h
 ## 4. File lokal secrets (di PC Anda)
 
 ```bash
-cd "D:/Coding/payment gateway"
+cd "D:/Coding/paycore"
 copy .staging.vars.example .staging.vars
 ```
 
 Isi `.staging.vars` (contoh field, **tanpa** nilai asli di repo):
 
 ```text
-DUITKU_BASE_URL=https://sandbox.duitku.com
+DUITKU_BASE_URL=https://api-sandbox.duitku.com
 DUITKU_MERCHANT_CODE=<dari dashboard>
 DUITKU_API_KEY=<dari dashboard>
 DUITKU_CALLBACK_SECRET=
@@ -57,7 +57,7 @@ NARRAZA_APP_SECRET=<samakan dengan Narraza staging>
 NARRAZA_WEBHOOK_SECRET=<samakan dengan Narraza staging>
 ```
 
-`DUITKU_CALLBACK_SECRET` boleh kosong — verifikasi callback memakai **MD5 + API Key**, bukan URL.
+`DUITKU_CALLBACK_SECRET` boleh kosong. Verifikasi callback memakai `DUITKU_API_KEY`; POP callback memakai HMAC SHA256, dan MD5 lama hanya diterima sebagai fallback kompatibilitas.
 
 ## 5. Upload secrets ke Cloudflare
 
@@ -111,4 +111,4 @@ Detail: `docs/troubleshooting.md`, `docs/duitku-integration.md`.
 
 ## 10. Production
 
-**Jangan** pakai credential sandbox di production. Production memakai host Duitku live + `https://pay.appvibe.biz.id/webhooks/duitku` — setup terpisah setelah E2E staging lulus.
+**Jangan** pakai credential sandbox di production. Production memakai `DUITKU_BASE_URL=https://api-prod.duitku.com` + callback `https://pay.appvibe.biz.id/webhooks/duitku` — setup terpisah setelah E2E staging lulus.

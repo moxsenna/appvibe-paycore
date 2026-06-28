@@ -4,7 +4,7 @@ import type { PayCoreEnv } from '../src/types/env.ts';
 
 const base = {
   ENVIRONMENT: 'test',
-  DUITKU_BASE_URL: 'https://sandbox.duitku.com',
+  DUITKU_BASE_URL: 'https://api-sandbox.duitku.com',
   DUITKU_MERCHANT_CODE: 'DS',
   DUITKU_API_KEY: 'key',
   PAYCORE_PUBLIC_BASE_URL: 'https://pay-staging.appvibe.biz.id',

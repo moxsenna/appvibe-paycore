@@ -4,7 +4,7 @@
 
 | Area | File |
 |------|------|
-| MD5 / auth | `tests/md5.test.ts`, `tests/crypto-auth.test.ts` |
+| Duitku / auth | `tests/md5.test.ts`, `tests/crypto-auth.test.ts`, `tests/duitku-provider.test.ts` |
 | Retry eligibility | `tests/fulfillment-retry.test.ts` |
 | Return URL | `tests/return-url.test.ts` |
 | Narraza ref | `tests/narraza-idempotency.test.ts` |

@@ -32,7 +32,7 @@ export function timingSafeEqual(a: string, b: string): boolean {
   return out === 0;
 }
 
-/** Duitku signatures use MD5 hex — field order must match docs/duitku-integration.md */
+/** Legacy Duitku V2 callbacks/status use MD5. POP production uses HMAC SHA256. */
 export function duitkuCallbackSignatureMd5(
   merchantCode: string,
   amount: string,
@@ -48,7 +48,7 @@ export function duitkuRequestSignatureMd5(
   merchantOrderId: string,
   apiKey: string,
 ): string {
-  return md5Hex(`${merchantCode}${paymentAmount}${merchantOrderId}${apiKey}`);
+  return md5Hex(`${merchantCode}${merchantOrderId}${paymentAmount}${apiKey}`);
 }
 
 

@@ -7,7 +7,7 @@ Centralized payment orchestration on **Cloudflare Workers**, **D1**, **Queues**,
 - Hono + TypeScript (strict)
 - **Cloudflare D1** (`paycore-staging`, `paycore-production`) — not Supabase
 - Cloudflare Queues (fulfillment + dead-letter)
-- Duitku adapter (pure JS MD5)
+- Duitku POP adapter (HMAC SHA256, with legacy MD5 callback fallback)
 
 ## Local development
 
@@ -41,7 +41,7 @@ Do **not** run production migrations/deploy from CI without approval.
 ## Docs
 - `docs/integration-guide.md` — consumer app integration
 - `docs/openapi.yaml` — API reference
-- `D:/Coding/payment gateway/prompt.md` — salin ke agen di repo aplikasi lain (baca docs PayCore lewat path absolut di prompt)
+- `D:/Coding/paycore/prompt.md` - salin ke agen di repo aplikasi lain bila perlu
 - `docs/architecture.md`
 - `docs/deployment.md`
 - `docs/runbook.md`

@@ -22,7 +22,7 @@
 | 409 external_order_id | Duplikat di app yang sama | D1 `payment_orders` | Gunakan id unik per checkout |
 | 502 / no checkout_url | Duitku create gagal | Worker logs `duitku_create_failed` | Cek `DUITKU_*` secrets, merchant sandbox |
 | Callback tidak masuk | URL Duitku salah | Dashboard Duitku | `https://pay-staging.appvibe.biz.id/webhooks/duitku` |
-| Order tetap pending | Callback belum / gagal signature | D1 `payment_events` | Cek MD5 amount string vs Duitku; API key |
+| Order tetap pending | Callback belum / gagal signature | D1 `payment_events` | Cek POP HMAC signature, amount string, merchant code, dan API key |
 | Paid, kredit tidak naik | Webhook app down / 5xx | D1 `fulfillment_deliveries` status failed | Fix endpoint; PayCore akan retry |
 | Paid, kredit tidak naik | Webhook secret beda | Signature verify gagal di app | Sinkron AppVibe `PAYCORE_WEBHOOK_SECRET` dengan PayCore `VAULT_WEBHOOK_SECRET` |
 | Kredit naik 2x | Idempotency app lemah | Ledger tanpa unique `event_id` | Unique constraint + `paycore:{order_id}` |

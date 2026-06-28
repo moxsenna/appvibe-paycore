@@ -7,7 +7,7 @@ describe('Duitku MD5 signatures', () => {
   const orderId = 'NAR-20260624-8H2KQ';
   const amount = 99000;
 
-  it('create payment signature concatenates merchantCode + amount + orderId + apiKey', () => {
+  it('legacy transactionStatus signature concatenates merchantCode + orderId + amount + apiKey', () => {
     const sig = duitkuRequestSignatureMd5(merchantCode, amount, orderId, apiKey);
     expect(sig).toMatch(/^[a-f0-9]{32}$/);
     expect(sig).toBe(duitkuRequestSignatureMd5(merchantCode, amount, orderId, apiKey));

@@ -1,0 +1,26 @@
+# Copy to a private local file only when preparing production secrets.
+# Do not commit real values. Production deployment requires explicit owner approval.
+
+ENVIRONMENT=production
+
+DUITKU_BASE_URL=https://api-prod.duitku.com
+DUITKU_MERCHANT_CODE=
+DUITKU_API_KEY=
+DUITKU_CALLBACK_SECRET=
+
+PAYCORE_PUBLIC_BASE_URL=https://pay.appvibe.biz.id
+
+PAYCORE_INTERNAL_MASTER_KEY=
+PAYCORE_ENCRYPTION_KEY=
+
+NARRAZA_APP_KEY_ID=pk_production_narraza_01
+NARRAZA_APP_SECRET=
+NARRAZA_WEBHOOK_SECRET=
+
+VAULT_APP_KEY_ID=pk_production_vault_01
+VAULT_APP_SECRET=
+VAULT_WEBHOOK_SECRET=
+
+SENTRY_DSN=
+
+PAYCORE_ADMIN_DEV_TOKEN=
