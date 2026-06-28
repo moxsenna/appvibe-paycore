@@ -20,9 +20,12 @@ function newInternalEventId(): string {
   return `evt_${crypto.randomUUID().replace(/-/g, '')}`;
 }
 
-export async function recordWebhookPaid(
+export async function recordVerifiedPayment(
   db: PayCoreDb,
   input: {
+    source: 'webhook' | 'reconciliation';
+    verificationMethod: 'provider_signature' | 's2s_invoice_lookup';
+    verificationValid: boolean;
     eventId: string;
     provider: string;
     merchantProfileId: string;
@@ -30,7 +33,6 @@ export async function recordWebhookPaid(
     providerEventId: string;
     payloadHash: string;
     rawPayload: Record<string, unknown>;
-    signatureValid: boolean;
     providerReference: string | null;
     paidAmount: number;
   },
@@ -56,14 +58,16 @@ export async function recordWebhookPaid(
 
   const now = nowMs();
   const rawJson = stringifyJson(input.rawPayload);
+  const signatureValidVal = input.verificationMethod === 'provider_signature' && input.verificationValid ? 1 : 0;
+  const verificationValidVal = input.verificationValid ? 1 : 0;
 
-  if (!input.signatureValid) {
+  if (!input.verificationValid) {
     await db
       .prepare(
         `INSERT OR IGNORE INTO payment_events (
           id, event_id, provider, merchant_profile_id, order_id, provider_event_id,
-          event_type, payload_hash, raw_payload, signature_valid, processing_status, received_at, processed_at
-        ) VALUES (?, ?, ?, ?, ?, ?, 'provider.callback', ?, ?, 0, 'rejected', ?, ?)`,
+          event_type, payload_hash, raw_payload, signature_valid, verification_valid, verification_method, processing_status, received_at, processed_at
+        ) VALUES (?, ?, ?, ?, ?, ?, 'provider.callback', ?, ?, ?, ?, ?, 'rejected', ?, ?)`
       )
       .bind(
         newId(),
@@ -74,6 +78,9 @@ export async function recordWebhookPaid(
         input.providerEventId,
         input.payloadHash,
         rawJson,
+        signatureValidVal,
+        verificationValidVal,
+        input.verificationMethod,
         now,
         now,
       )
@@ -85,8 +92,8 @@ export async function recordWebhookPaid(
     .prepare(
       `INSERT OR IGNORE INTO payment_events (
         id, event_id, provider, merchant_profile_id, order_id, provider_event_id,
-        event_type, payload_hash, raw_payload, signature_valid, processing_status, received_at, processed_at
-      ) VALUES (?, ?, ?, ?, ?, ?, 'provider.callback.paid', ?, ?, 1, 'processed', ?, ?)`,
+        event_type, payload_hash, raw_payload, signature_valid, verification_valid, verification_method, processing_status, received_at, processed_at
+      ) VALUES (?, ?, ?, ?, ?, ?, 'provider.callback.paid', ?, ?, ?, ?, ?, 'processed', ?, ?)`
     )
     .bind(
       newId(),
@@ -97,6 +104,9 @@ export async function recordWebhookPaid(
       input.providerEventId,
       input.payloadHash,
       rawJson,
+      signatureValidVal,
+      verificationValidVal,
+      input.verificationMethod,
       now,
       now,
     )

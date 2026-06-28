@@ -23,3 +23,6 @@ VAULT_APP_SECRET=dev_vault_app_secret_change_me
 VAULT_WEBHOOK_SECRET=dev_vault_webhook_secret_change_me
 
 PAYCORE_ADMIN_DEV_TOKEN=dev_admin_token_change_me
+
+MAYAR_API_KEY=xxx
+MAYAR_BASE_URL=https://api.mayar.id

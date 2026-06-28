@@ -27,6 +27,9 @@ export interface PayCoreEnv {
   VAULT_WEBHOOK_SECRET: string;
 
   PAYCORE_ADMIN_DEV_TOKEN?: string;
+
+  MAYAR_API_KEY: string;
+  MAYAR_BASE_URL: string;
 }
 
 export type { FulfillmentQueueMessage };

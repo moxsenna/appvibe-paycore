@@ -1,6 +1,10 @@
 import type { PayCoreDb } from '../db/index.ts';
-import { summarizeOrdersInRange, expirePendingOrders, countPaidUndelivered } from '../db/repositories/orders-repository.ts';
+import { summarizeOrdersInRange, expirePendingOrders, countPaidUndelivered, getPendingOrdersByProvider } from '../db/repositories/orders-repository.ts';
 import { insertAuditLog } from '../db/repositories/audit-repository.ts';
+import { recordVerifiedPayment } from '../db/repositories/webhook-repository.ts';
+import { createMayarAdapter } from '../providers/mayar.ts';
+import { FulfillmentService } from './fulfillment-service.ts';
+import { AuditService } from './audit-service.ts';
 import type { PayCoreLogger } from '../lib/logger.ts';
 import { nowMs } from '../lib/time.ts';
 import type { PayCoreEnv } from '../types/env.ts';
@@ -116,5 +120,77 @@ export class ReconciliationService {
       requeuedFulfillmentCount,
       paidUndeliveredFound,
     };
+  }
+
+  async reconcileMayarOrders(env: PayCoreEnv): Promise<number> {
+    const now = nowMs();
+    // find orders older than 5 minutes, limit to 50 for safety
+    const pendingOrders = await getPendingOrdersByProvider(this.db, 'mayar', now - 5 * 60_000, 50);
+    
+    if (pendingOrders.length === 0) return 0;
+    
+    const adapter = createMayarAdapter(env);
+    const fulfillment = new FulfillmentService(env, this.db, this.log as PayCoreLogger);
+    const audit = new AuditService(this.db, this.log as PayCoreLogger);
+    let reconciledCount = 0;
+
+    for (const order of pendingOrders) {
+      if (!order.provider_reference) continue;
+      
+      try {
+        const status = await adapter.lookupPaymentStatus({ providerReference: order.provider_reference, merchantOrderId: order.order_id });
+        if (status.paid) {
+          const eventId = `pevt_${crypto.randomUUID().replace(/-/g, '')}`;
+          const safePayload = {
+            event: 'payment.received',
+            data: {
+              id: status.providerReference,
+              status: 'paid',
+              amount: status.paidAmount,
+              transactionId: status.providerTransactionReference,
+            },
+          };
+          
+          const recorded = await recordVerifiedPayment(this.db, {
+            source: 'reconciliation',
+            verificationMethod: 's2s_invoice_lookup',
+            verificationValid: true,
+            eventId,
+            provider: 'mayar',
+            merchantProfileId: order.merchant_profile_id,
+            orderUuid: order.id,
+            providerEventId: status.providerReference ?? 'unknown',
+            payloadHash: 'reconciliation_hash',
+            rawPayload: safePayload,
+            providerReference: status.providerReference,
+            paidAmount: status.paidAmount ?? 0,
+          });
+
+          const outcome = recorded.outcome;
+          if (outcome === 'paid' && recorded.internalEventId) {
+             await audit.record({
+               actorType: 'system',
+               actorId: 'reconciliation',
+               action: 'webhook.paid',
+               entityType: 'payment_order',
+               entityId: order.order_id,
+               metadata: { verification_method: 's2s_invoice_lookup' },
+             });
+             await fulfillment.enqueueForPaidOrder({
+               paymentOrderId: order.id,
+               internalEventId: recorded.internalEventId,
+               appUuid: order.app_id,
+             });
+             reconciledCount++;
+          }
+        }
+      } catch (err) {
+        this.log?.error('mayar_reconciliation_lookup_failed', {
+          order_id: order.order_id,
+          message: err instanceof Error ? err.message : 'unknown'
+        });
+      }
+    }
+    return reconciledCount;
   }
 }

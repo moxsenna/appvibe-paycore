@@ -21,6 +21,8 @@ function env(overrides: Partial<PayCoreEnv> = {}): PayCoreEnv {
     DB: {} as PayCoreEnv['DB'],
     FULFILLMENT_QUEUE: {} as PayCoreEnv['FULFILLMENT_QUEUE'],
     DEAD_LETTER_QUEUE: {} as PayCoreEnv['DEAD_LETTER_QUEUE'],
+    MAYAR_API_KEY: 'test-key',
+    MAYAR_BASE_URL: 'https://api.mayar.id',
     ...overrides,
   };
 }
@@ -56,6 +58,8 @@ describe('Duitku POP adapter', () => {
       callbackUrl: 'https://pay.appvibe.biz.id/webhooks/duitku',
       returnUrl: 'https://pay.appvibe.biz.id/return/VLT-20260628-AAAA',
       expiryPeriodMinutes: 10,
+      productKey: 'vault_app',
+      expiresAt: '2026-06-28T00:10:00.000Z',
     });
 
     expect(result.checkoutUrl).toContain('redirect_checkout');
@@ -92,6 +96,8 @@ describe('Duitku POP adapter', () => {
       callbackUrl: 'https://pay-staging.appvibe.biz.id/webhooks/duitku',
       returnUrl: 'https://pay-staging.appvibe.biz.id/return/VLT-20260628-BBBB',
       expiryPeriodMinutes: 10,
+      productKey: 'vault_app',
+      expiresAt: '2026-06-28T00:10:00.000Z',
     });
 
     const [url] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
@@ -102,7 +108,7 @@ describe('Duitku POP adapter', () => {
     const adapter = new DuitkuAdapter(env());
     const signature = await hmacSha256Hex('merchant-key', 'D123497000VLT-20260628-CCCC');
 
-    const result = await adapter.verifyWebhook({
+    const result = await adapter.verifyCallback({
       merchantCode: 'D1234',
       apiKey: 'merchant-key',
       payload: {
@@ -131,7 +137,7 @@ describe('Duitku POP adapter', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const adapter = new DuitkuAdapter(env({ DUITKU_BASE_URL: 'https://api-prod.duitku.com' }));
-    await adapter.getPaymentStatus('VLT-20260628-DDDD');
+    await adapter.lookupPaymentStatus({ merchantOrderId: 'VLT-20260628-DDDD', providerReference: null });
 
     const [url] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe(

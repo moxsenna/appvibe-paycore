@@ -16,6 +16,20 @@ export const duitkuCallbackPayloadSchema = z.object({
 
 export type DuitkuCallbackPayload = z.infer<typeof duitkuCallbackPayloadSchema>;
 
+export const mayarWebhookPayloadSchema = z.object({
+  event: z.string(),
+  data: z.object({
+    id: z.string(),
+    transactionId: z.string().optional(),
+    status: z.string(),
+    amount: z.number(),
+    createdAt: z.string().optional(),
+    updatedAt: z.string().optional(),
+  }).passthrough(),
+}).passthrough();
+
+export type MayarWebhookPayload = z.infer<typeof mayarWebhookPayloadSchema>;
+
 export const paymentSucceededEventSchema = z.object({
   event_id: z.string(),
   event_type: z.literal('payment.succeeded'),

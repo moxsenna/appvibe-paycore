@@ -41,10 +41,18 @@ export default {
     }
   },
 
-  async scheduled(_event: ScheduledEvent, env: PayCoreEnv): Promise<void> {
+  async scheduled(event: ScheduledEvent, env: PayCoreEnv): Promise<void> {
     const paycoreEnv = validateEnv(env);
     const log = createLogger({ service: 'paycore-cron' });
     const recon = new ReconciliationService(paycoreEnv.DB, log);
+
+    if (event.cron === '*/15 * * * *') {
+      const reconciledCount = await recon.reconcileMayarOrders(paycoreEnv);
+      log.info('15min_mayar_reconciliation', {
+        reconciled_count: reconciledCount,
+      });
+      return;
+    }
 
     const result = await recon.runDaily(paycoreEnv);
 

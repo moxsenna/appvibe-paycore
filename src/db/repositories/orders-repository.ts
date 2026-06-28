@@ -62,17 +62,19 @@ export async function updateOrderCheckout(
     payment_status: string;
     checkout_url?: string | null;
     provider_reference?: string | null;
+    provider_transaction_reference?: string | null;
   },
 ): Promise<void> {
   await db
     .prepare(
-      `UPDATE payment_orders SET payment_status = ?, checkout_url = ?, provider_reference = ?, updated_at = ?
+      `UPDATE payment_orders SET payment_status = ?, checkout_url = ?, provider_reference = ?, provider_transaction_reference = ?, updated_at = ?
        WHERE id = ?`,
     )
     .bind(
       patch.payment_status,
       patch.checkout_url ?? null,
       patch.provider_reference ?? null,
+      patch.provider_transaction_reference ?? null,
       nowMs(),
       orderUuid,
     )
@@ -347,4 +349,42 @@ export async function summarizeOrdersInRange(
     fulfillmentDelivered: Number(row?.fd ?? 0),
     fulfillmentFailed: Number(row?.ff ?? 0),
   };
+}
+
+export async function findOrderForMayarWebhook(
+  db: PayCoreDb,
+  reference: string
+): Promise<{ id: string, order_id: string, provider_reference: string | null } | null> {
+  const row = await db
+    .prepare(`SELECT id, order_id, provider_reference FROM payment_orders WHERE provider = 'mayar' AND (provider_reference = ? OR provider_transaction_reference = ?) LIMIT 1`)
+    .bind(reference, reference)
+    .first<{ id: string, order_id: string, provider_reference: string | null }>();
+  return row ?? null;
+}
+
+export async function getPendingOrdersByProvider(
+  db: PayCoreDb,
+  provider: string,
+  olderThanMs: number,
+  limit: number
+): Promise<{ id: string; order_id: string; provider_reference: string | null; merchant_profile_id: string; app_id: string; }[]> {
+  const { results } = await db
+    .prepare(
+      `SELECT id, order_id, provider_reference, merchant_profile_id, app_id 
+       FROM payment_orders 
+       WHERE provider = ? 
+       AND payment_status IN ('created', 'pending') 
+       AND created_at < ? 
+       ORDER BY created_at ASC 
+       LIMIT ?`
+    )
+    .bind(provider, olderThanMs, limit)
+    .all<{ id: string; order_id: string; provider_reference: string | null; merchant_profile_id: string; app_id: string; }>();
+  return (results ?? []).map(r => ({
+    id: String(r.id),
+    order_id: String(r.order_id),
+    provider_reference: r.provider_reference === null ? null : String(r.provider_reference),
+    merchant_profile_id: String(r.merchant_profile_id),
+    app_id: String(r.app_id),
+  }));
 }

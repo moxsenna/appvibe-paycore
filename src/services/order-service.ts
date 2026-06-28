@@ -17,6 +17,8 @@ import {
   updateOrderCheckout,
 } from '../db/repositories/orders-repository.ts';
 import { createDuitkuAdapter } from '../providers/duitku.ts';
+import { createMayarAdapter } from '../providers/mayar.ts';
+import type { PaymentProviderAdapter } from '../providers/types.ts';
 import type { CreateOrderRequest } from '../schemas/order.ts';
 import type { PayCoreEnv } from '../types/env.ts';
 
@@ -86,15 +88,22 @@ export class OrderService {
       throw Errors.validation('return_url is not allowlisted for this app');
     }
 
+    if (params.body.merchant_profile_id && params.body.merchant_profile_id !== app.default_merchant_profile_id) {
+      throw Errors.forbidden('Merchant profile is not assigned to this app');
+    }
+
     const merchant = await getActiveMerchantProfile(this.db, {
-      profileKey: params.body.merchant_profile_id,
-      defaultId: app.default_merchant_profile_id,
+      profileKey: app.default_merchant_profile_id ?? undefined,
+      defaultId: app.default_merchant_profile_id ?? undefined,
     });
     if (!merchant) {
       throw Errors.validation('Merchant profile not found');
     }
-    if (merchant.provider !== 'duitku') {
+    if (merchant.provider !== 'duitku' && merchant.provider !== 'mayar') {
       throw Errors.validation('Unsupported payment provider');
+    }
+    if (merchant.provider === 'mayar' && !params.body.customer.phone) {
+      throw Errors.validation('Customer phone is required for Mayar provider');
     }
 
     const orderId = generateOrderId(app.order_prefix);
@@ -134,12 +143,16 @@ export class OrderService {
       throw Errors.internal('Failed to create order');
     }
 
-    const adapter = createDuitkuAdapter(this.env);
+    const adapter: PaymentProviderAdapter = merchant.provider === 'mayar' 
+      ? createMayarAdapter(this.env) 
+      : createDuitkuAdapter(this.env);
+      
     const paycoreReturnUrl = `${this.env.PAYCORE_PUBLIC_BASE_URL.replace(/\/+$/, '')}/return/${orderId}`;
-    const callbackUrl = `${this.env.PAYCORE_PUBLIC_BASE_URL.replace(/\/+$/, '')}/webhooks/duitku`;
+    const callbackUrl = `${this.env.PAYCORE_PUBLIC_BASE_URL.replace(/\/+$/, '')}/webhooks/${merchant.provider}`;
 
     let checkoutUrl: string | null = null;
     let providerReference: string | null = null;
+    let providerTransactionReference: string | null = null;
     let paymentStatus = 'pending';
 
     try {
@@ -153,12 +166,15 @@ export class OrderService {
         callbackUrl,
         returnUrl: paycoreReturnUrl,
         expiryPeriodMinutes: ORDER_EXPIRY_MINUTES,
+        productKey: params.body.product_key ?? 'unknown',
+        expiresAt: msToIso(expiresAtMs) ?? new Date(expiresAtMs).toISOString(),
       });
       checkoutUrl = created.checkoutUrl;
       providerReference = created.providerReference;
+      providerTransactionReference = created.providerTransactionReference ?? null;
     } catch (err) {
       paymentStatus = 'create_failed';
-      this.log.error('duitku_create_failed', {
+      this.log.error(`${merchant.provider}_create_failed`, {
         order_id: orderId,
         message: err instanceof Error ? err.message : 'unknown',
       });
@@ -170,6 +186,7 @@ export class OrderService {
         payment_status: 'pending',
         checkout_url: checkoutUrl,
         provider_reference: providerReference,
+        provider_transaction_reference: providerTransactionReference,
       });
     }
 

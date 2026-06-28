@@ -12,9 +12,22 @@ import type {
   CreatePaymentResult,
   PaymentProviderAdapter,
   PaymentStatusResult,
-  WebhookVerificationInput,
-  WebhookVerificationResult,
+  PaymentStatusLookupInput,
 } from './types.ts';
+
+export interface WebhookVerificationInput {
+  payload: DuitkuCallbackPayload;
+  merchantCode: string;
+  apiKey: string;
+}
+
+export interface WebhookVerificationResult {
+  valid: boolean;
+  paid: boolean;
+  paidAmount: number;
+  providerReference: string | null;
+  providerEventId: string;
+}
 
 const CREATE_PATH = '/api/merchant/createInvoice';
 const STATUS_PATH = '/webapi/api/merchant/transactionStatus';
@@ -127,7 +140,7 @@ export class DuitkuAdapter implements PaymentProviderAdapter {
     };
   }
 
-  async verifyWebhook(input: WebhookVerificationInput): Promise<WebhookVerificationResult> {
+  async verifyCallback(input: WebhookVerificationInput): Promise<WebhookVerificationResult> {
     const { payload, merchantCode, apiKey } = input;
     const amountStr = callbackAmountString(payload.amount);
     const expectedPop = await hmacSha256Hex(
@@ -159,7 +172,11 @@ export class DuitkuAdapter implements PaymentProviderAdapter {
     };
   }
 
-  async getPaymentStatus(merchantOrderId: string): Promise<PaymentStatusResult> {
+  async lookupPaymentStatus(input: PaymentStatusLookupInput): Promise<PaymentStatusResult> {
+    const merchantOrderId = input.merchantOrderId;
+    if (!merchantOrderId) {
+      throw Errors.validation('merchantOrderId is required for Duitku lookup');
+    }
     const merchantCode = this.env.DUITKU_MERCHANT_CODE;
     const signature = duitkuRequestSignatureMd5(
       merchantCode,
@@ -180,7 +197,16 @@ export class DuitkuAdapter implements PaymentProviderAdapter {
     const providerReference =
       typeof json.reference === 'string' ? json.reference : null;
 
-    return { resultCode, status, providerReference, rawResponse: json };
+    const paid = resultCode === '00';
+
+    return { 
+      status, 
+      paid,
+      paidAmount: null,
+      providerReference, 
+      providerTransactionReference: null,
+      rawResponse: json 
+    };
   }
 }
 

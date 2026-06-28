@@ -33,7 +33,7 @@ max_batch_size = 5
 max_batch_timeout = 30
 
 [triggers]
-crons = ["0 2 * * *"]
+crons = ["0 2 * * *", "*/15 * * * *"]
 
 [env.staging]
 name = "appvibe-paycore-staging"
@@ -66,7 +66,7 @@ max_batch_size = 5
 max_batch_timeout = 30
 
 [env.staging.triggers]
-crons = ["0 2 * * *"]
+crons = ["0 2 * * *", "*/15 * * * *"]
 
 [env.production]
 name = "appvibe-paycore"
@@ -99,4 +99,4 @@ max_batch_size = 5
 max_batch_timeout = 30
 
 [env.production.triggers]
-crons = ["0 2 * * *"]
+crons = ["0 2 * * *", "*/15 * * * *"]

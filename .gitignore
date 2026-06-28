@@ -4,6 +4,8 @@ dist/
 .dev.vars
 .staging.vars
 .staging.secrets
+.production.vars
+.production.secrets
 *.log
 .DS_Store
 .env

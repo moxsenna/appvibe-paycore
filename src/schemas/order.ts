@@ -8,7 +8,7 @@ export const createOrderCustomerSchema = z.object({
 
 export const createOrderRequestSchema = z.object({
   external_order_id: z.string().min(1).max(128),
-  merchant_profile_id: z.string().min(1).max(64).default('appvibe_default'),
+  merchant_profile_id: z.string().min(1).max(64).optional(),
   product_key: z.string().min(1).max(128),
   description: z.string().min(1).max(512),
   amount: z.number().int().positive(),
