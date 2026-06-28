@@ -18,6 +18,8 @@ const envSchema = z.object({
   VAULT_APP_SECRET: z.string().min(8),
   VAULT_WEBHOOK_SECRET: z.string().min(8),
   PAYCORE_ADMIN_DEV_TOKEN: z.string().optional(),
+  MAYAR_API_KEY: z.string().min(1),
+  MAYAR_BASE_URL: z.string().url(),
 });
 
 export function validateEnv(raw: PayCoreEnv): PayCoreEnv {

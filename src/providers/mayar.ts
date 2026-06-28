@@ -114,7 +114,7 @@ export class MayarAdapter implements PaymentProviderAdapter {
     }
 
     const status = String(data.status ?? 'unknown');
-    const paid = status === 'paid';
+    const paid = status.toUpperCase() === 'PAID';
     const paidAmount = typeof data.amount === 'number' ? data.amount : 
                        (typeof data.amount === 'string' ? parseFloat(data.amount) : null);
     

@@ -16,15 +16,23 @@ WHERE verification_valid = 0;
 INSERT INTO merchant_profiles (
   id,
   provider,
-  provider_account_id,
+  profile_key,
+  merchant_code,
   credential_ref,
-  status
+  currency,
+  status,
+  created_at,
+  updated_at
 ) VALUES (
   'mp_mayar_main',
   'mayar',
-  'mayar_main_account',
+  'mp_mayar_main',
+  'MAYAR_DUMMY_CODE',
   'MAYAR_APPVIBE_MAIN',
-  'active'
+  'IDR',
+  'active',
+  1719600000000,
+  1719600000000
 );
 
 -- Note: we update apps to use the Mayar profile if they were using Duitku

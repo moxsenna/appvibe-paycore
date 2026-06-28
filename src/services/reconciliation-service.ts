@@ -1,4 +1,5 @@
 import type { PayCoreDb } from '../db/index.ts';
+import { sha256Hex } from '../lib/crypto.ts';
 import { summarizeOrdersInRange, expirePendingOrders, countPaidUndelivered, getPendingOrdersByProvider } from '../db/repositories/orders-repository.ts';
 import { insertAuditLog } from '../db/repositories/audit-repository.ts';
 import { recordVerifiedPayment } from '../db/repositories/webhook-repository.ts';
@@ -150,6 +151,7 @@ export class ReconciliationService {
               transactionId: status.providerTransactionReference,
             },
           };
+          const payloadHash = await sha256Hex(`reconciliation:${order.id}:${status.providerReference}`);
           
           const recorded = await recordVerifiedPayment(this.db, {
             source: 'reconciliation',
@@ -160,7 +162,7 @@ export class ReconciliationService {
             merchantProfileId: order.merchant_profile_id,
             orderUuid: order.id,
             providerEventId: status.providerReference ?? 'unknown',
-            payloadHash: 'reconciliation_hash',
+            payloadHash,
             rawPayload: safePayload,
             providerReference: status.providerReference,
             paidAmount: status.paidAmount ?? 0,
