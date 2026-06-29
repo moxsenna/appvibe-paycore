@@ -30,6 +30,7 @@ function mockEnv(): PayCoreEnv {
 
 function createMockDb(scenario: 'success' | 'duplicate' | 'amount_mismatch') {
   const updates: string[] = [];
+  const insertedEvents: unknown[][] = [];
   const insertChanges = scenario === 'duplicate' ? 0 : 1;
   const orderAmount = scenario === 'amount_mismatch' ? 50000 : 100000;
   
@@ -96,6 +97,9 @@ function createMockDb(scenario: 'success' | 'duplicate' | 'amount_mismatch') {
             },
             async run() {
               if (/UPDATE/.test(sql)) updates.push(sql);
+              if (/INSERT/.test(sql) && /payment_events/i.test(sql)) {
+                insertedEvents.push(_values);
+              }
               return { meta: { changes: /INSERT/.test(sql) ? insertChanges : 1 } };
             }
           };
@@ -104,7 +108,7 @@ function createMockDb(scenario: 'success' | 'duplicate' | 'amount_mismatch') {
     },
     batch: async () => []
   };
-  return { db, updates };
+  return { db, updates, insertedEvents };
 }
 
 describe('Mayar Integration', () => {
@@ -115,7 +119,7 @@ describe('Mayar Integration', () => {
 
   it('WebhookService processes valid S2S lookup and queues fulfillment', async () => {
     const env = mockEnv();
-    const { db, updates } = createMockDb('success');
+    const { db, updates, insertedEvents } = createMockDb('success');
     env.DB = db as unknown as PayCoreEnv['DB'];
 
     const fetchMock = vi.fn(async () =>
@@ -129,15 +133,36 @@ describe('Mayar Integration', () => {
     const svc = new WebhookService(env, env.DB, createLogger({ service: 'test' }));
     
     // Simulate webhook hit
-    const res = await svc.handleMayarWebhook(JSON.stringify({
+    const rawBody = JSON.stringify({
       event: 'payment.received',
-      data: { id: 'INV-12345', status: 'PAID', amount: 100000, transactionId: 'TRX-999' }
-    }));
+      data: { 
+        id: 'INV-12345', 
+        status: true, 
+        amount: 100000, 
+        transactionId: 'TRX-999',
+        createdAt: 1730000000000,
+        updatedAt: 1730000001000,
+        customerName: 'Secret Name',
+        customerEmail: 'secret@email.com',
+        customerMobile: '0812345678',
+        pixelFbp: 'fbp_value'
+      }
+    });
+    const res = await svc.handleMayarWebhook(rawBody);
 
     expect(res.outcome).toBe('paid');
     expect(res.orderId).toBe('VLT-001');
     expect(updates.some(u => /UPDATE payment_orders SET[\s\S]*payment_status = 'paid'/i.test(u))).toBe(true);
     expect(env.FULFILLMENT_QUEUE.send).toHaveBeenCalled();
+    
+    expect(insertedEvents.length).toBeGreaterThan(0);
+    const rawPayloadJson = insertedEvents[0]?.[7] as string;
+    const rawPayload = JSON.parse(rawPayloadJson);
+    expect(rawPayload.data.amount).toBe(100000);
+    expect(rawPayload.data).not.toHaveProperty('customerName');
+    expect(rawPayload.data).not.toHaveProperty('customerEmail');
+    expect(rawPayload.data).not.toHaveProperty('customerMobile');
+    expect(rawPayload.data).not.toHaveProperty('pixelFbp');
   });
 
   it('WebhookService handles duplicate gracefully without requeueing', async () => {

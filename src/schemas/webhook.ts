@@ -16,15 +16,17 @@ export const duitkuCallbackPayloadSchema = z.object({
 
 export type DuitkuCallbackPayload = z.infer<typeof duitkuCallbackPayloadSchema>;
 
+const mayarTimestampSchema = z.union([z.number(), z.string()]);
+
 export const mayarWebhookPayloadSchema = z.object({
   event: z.string(),
   data: z.object({
     id: z.string(),
     transactionId: z.string().optional(),
-    status: z.string(),
+    status: z.union([z.boolean(), z.string()]),
     amount: z.number(),
-    createdAt: z.string().optional(),
-    updatedAt: z.string().optional(),
+    createdAt: mayarTimestampSchema.optional(),
+    updatedAt: mayarTimestampSchema.optional(),
   }).passthrough(),
 }).passthrough();
 
