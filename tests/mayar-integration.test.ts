@@ -28,7 +28,7 @@ function mockEnv(): PayCoreEnv {
   };
 }
 
-function createMockDb(scenario: 'success' | 'duplicate' | 'amount_mismatch') {
+function createMockDb(scenario: 'success' | 'duplicate' | 'amount_mismatch' | 'reconciliation_multi') {
   const updates: string[] = [];
   const insertedEvents: unknown[][] = [];
   const insertChanges = scenario === 'duplicate' ? 0 : 1;
@@ -41,6 +41,17 @@ function createMockDb(scenario: 'success' | 'duplicate' | 'amount_mismatch') {
           return {
             async first() {
               if (/SELECT id, order_id, amount, currency/i.test(sql)) {
+                // If checking by internal ID
+                if (_values[0] === 'order_uuid_2') {
+                  return {
+                    id: 'order_uuid_2',
+                    order_id: 'VLT-002',
+                    amount: 500000,
+                    currency: 'IDR',
+                    payment_status: 'pending',
+                    internal_event_id: null
+                  };
+                }
                 return {
                   id: 'order_uuid',
                   order_id: 'VLT-001',
@@ -54,6 +65,25 @@ function createMockDb(scenario: 'success' | 'duplicate' | 'amount_mismatch') {
                 return { id: 'order_uuid', order_id: 'VLT-001', provider_reference: 'INV-12345' };
               }
               if (/SELECT po\.id, po\.order_id, po\.external_order_id/i.test(sql)) {
+                if (_values[0] === 'order_uuid_2') {
+                  return {
+                    id: 'order_uuid_2',
+                    order_id: 'VLT-002',
+                    external_order_id: 'EXT-002',
+                    app_id: 'app',
+                    amount: 500000,
+                    currency: 'IDR',
+                    provider: 'mayar',
+                    provider_reference: 'INV-99999',
+                    product_key: null,
+                    fulfillment_data: '{}',
+                    internal_event_id: 'evt_2',
+                    paid_at: Date.now(),
+                    app_id_slug: 'test_app',
+                    webhook_url: 'http://test',
+                    webhook_secret_ref: 'sec'
+                  };
+                }
                 return {
                   id: 'order_uuid',
                   order_id: 'VLT-001',
@@ -91,6 +121,14 @@ function createMockDb(scenario: 'success' | 'duplicate' | 'amount_mismatch') {
             },
             async all() {
               if (/SELECT id, order_id, provider_reference, merchant_profile_id, app_id/i.test(sql)) {
+                if (scenario === 'reconciliation_multi') {
+                  return {
+                    results: [
+                      { id: 'order_uuid', order_id: 'VLT-001', provider_reference: 'INV-12345', merchant_profile_id: 'mp', app_id: 'app' },
+                      { id: 'order_uuid_2', order_id: 'VLT-002', provider_reference: 'INV-99999', merchant_profile_id: 'mp', app_id: 'app' }
+                    ]
+                  };
+                }
                 return { results: [{ id: 'order_uuid', order_id: 'VLT-001', provider_reference: 'INV-12345', merchant_profile_id: 'mp', app_id: 'app' }] };
               }
               return { results: [] };
@@ -117,6 +155,22 @@ describe('Mayar Integration', () => {
     vi.restoreAllMocks();
   });
 
+  const validMayarWebhookPayload = JSON.stringify({
+    event: 'payment.received',
+    data: { 
+      id: 'INV-12345', 
+      status: true, 
+      amount: 100000, 
+      transactionId: 'TRX-999',
+      createdAt: 1730000000000,
+      updatedAt: 1730000001000,
+      customerName: 'Secret Name',
+      customerEmail: 'secret@email.com',
+      customerMobile: '0812345678',
+      pixelFbp: 'fbp_value'
+    }
+  });
+
   it('WebhookService processes valid S2S lookup and queues fulfillment', async () => {
     const env = mockEnv();
     const { db, updates, insertedEvents } = createMockDb('success');
@@ -125,30 +179,13 @@ describe('Mayar Integration', () => {
     const fetchMock = vi.fn(async () =>
       Response.json({
         statusCode: '200',
-        data: { id: 'INV-12345', transactionId: 'TRX-999', status: 'PAID', amount: 100000 }
+        data: { id: 'INV-12345', transactionId: 'TRX-999', status: true, amount: 100000 }
       })
     );
     vi.stubGlobal('fetch', fetchMock);
 
     const svc = new WebhookService(env, env.DB, createLogger({ service: 'test' }));
-    
-    // Simulate webhook hit
-    const rawBody = JSON.stringify({
-      event: 'payment.received',
-      data: { 
-        id: 'INV-12345', 
-        status: true, 
-        amount: 100000, 
-        transactionId: 'TRX-999',
-        createdAt: 1730000000000,
-        updatedAt: 1730000001000,
-        customerName: 'Secret Name',
-        customerEmail: 'secret@email.com',
-        customerMobile: '0812345678',
-        pixelFbp: 'fbp_value'
-      }
-    });
-    const res = await svc.handleMayarWebhook(rawBody);
+    const res = await svc.handleMayarWebhook(validMayarWebhookPayload);
 
     expect(res.outcome).toBe('paid');
     expect(res.orderId).toBe('VLT-001');
@@ -173,16 +210,13 @@ describe('Mayar Integration', () => {
     const fetchMock = vi.fn(async () =>
       Response.json({
         statusCode: '200',
-        data: { id: 'INV-12345', transactionId: 'TRX-999', status: 'PAID', amount: 100000 }
+        data: { id: 'INV-12345', transactionId: 'TRX-999', status: true, amount: 100000 }
       })
     );
     vi.stubGlobal('fetch', fetchMock);
 
     const svc = new WebhookService(env, env.DB, createLogger({ service: 'test' }));
-    const res = await svc.handleMayarWebhook(JSON.stringify({
-      event: 'payment.received',
-      data: { id: 'INV-12345', status: 'PAID', amount: 100000, transactionId: 'TRX-999' }
-    }));
+    const res = await svc.handleMayarWebhook(validMayarWebhookPayload);
 
     expect(res.outcome).toBe('duplicate');
     expect(updates.some(u => /UPDATE payment_orders SET[\s\S]*payment_status = 'paid'/i.test(u))).toBe(false);
@@ -197,39 +231,50 @@ describe('Mayar Integration', () => {
     const fetchMock = vi.fn(async () =>
       Response.json({
         statusCode: '200',
-        data: { id: 'INV-12345', transactionId: 'TRX-999', status: 'PAID', amount: 100000 } // real amount 100k, db says 50k
+        data: { id: 'INV-12345', transactionId: 'TRX-999', status: true, amount: 100000 } // real amount 100k, db says 50k
       })
     );
     vi.stubGlobal('fetch', fetchMock);
 
     const svc = new WebhookService(env, env.DB, createLogger({ service: 'test' }));
-    const res = await svc.handleMayarWebhook(JSON.stringify({
-      event: 'payment.received',
-      data: { id: 'INV-12345', status: 'PAID', amount: 100000, transactionId: 'TRX-999' }
-    }));
+    const res = await svc.handleMayarWebhook(validMayarWebhookPayload);
 
     expect(res.outcome).toBe('amount_mismatch');
     expect(updates.some(u => /UPDATE payment_orders SET[\s\S]*payment_status = 'manual_review'/i.test(u))).toBe(true);
   });
 
-  it('ReconciliationService processes Mayar pending orders', async () => {
+  it('ReconciliationService processes Mayar pending orders (multiple orders)', async () => {
     const env = mockEnv();
-    const { db, updates } = createMockDb('success');
+    const { db, updates, insertedEvents } = createMockDb('reconciliation_multi');
     env.DB = db as unknown as PayCoreEnv['DB'];
 
-    const fetchMock = vi.fn(async () =>
-      Response.json({
-        statusCode: '200',
-        data: { id: 'INV-12345', transactionId: 'TRX-999', status: 'PAID', amount: 100000 }
-      })
-    );
+    const fetchMock = vi.fn(async (url: string | URL | Request) => {
+      const urlStr = String(url);
+      if (urlStr.includes('INV-12345')) {
+        return Response.json({
+          statusCode: '200',
+          data: { id: 'INV-12345', transactionId: 'TRX-999', status: true, amount: 100000 }
+        });
+      }
+      if (urlStr.includes('INV-99999')) {
+        return Response.json({
+          statusCode: '200',
+          data: { id: 'INV-99999', transactionId: 'TRX-888', status: true, amount: 500000 }
+        });
+      }
+      return Response.json({ statusCode: '404' });
+    });
     vi.stubGlobal('fetch', fetchMock);
 
     const svc = new ReconciliationService(env.DB, createLogger({ service: 'test' }));
     const count = await svc.reconcileMayarOrders(env);
 
-    expect(count).toBe(1);
+    expect(count).toBe(2);
     expect(updates.some(u => /UPDATE payment_orders SET[\s\S]*payment_status = 'paid'/i.test(u))).toBe(true);
-    expect(env.FULFILLMENT_QUEUE.send).toHaveBeenCalled();
+    expect(env.FULFILLMENT_QUEUE.send).toHaveBeenCalledTimes(2);
+
+    expect(insertedEvents.length).toBe(2);
+    const hashes = insertedEvents.map(row => row[6]); // payloadHash is 7th param (index 6)
+    expect(hashes[0]).not.toBe(hashes[1]); // Ensure hashes are distinct per order
   });
 });

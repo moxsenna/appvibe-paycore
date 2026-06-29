@@ -113,7 +113,11 @@ export class MayarAdapter implements PaymentProviderAdapter {
       throw Errors.internal('Mayar missing data object in lookup');
     }
 
-    const status = String(data.status ?? 'unknown');
+    let statusRaw = data.status ?? 'unknown';
+    if (typeof statusRaw === 'boolean') {
+      statusRaw = statusRaw ? 'PAID' : 'UNPAID';
+    }
+    const status = String(statusRaw);
     const paid = status.toUpperCase() === 'PAID';
     const paidAmount = typeof data.amount === 'number' ? data.amount : 
                        (typeof data.amount === 'string' ? parseFloat(data.amount) : null);
