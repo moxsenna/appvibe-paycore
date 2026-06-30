@@ -311,7 +311,7 @@ Example: `paycore:NAR-20260624-8H2KQ`
 
 ## 10. Testing staging
 
-See `docs/staging-e2e-checklist.md` and `docs/examples/narraza-integration.md`.
+See `docs/external/examples/narraza-integration.md` if the consumer app is Narraza.
 
 Minimum: `/health` OK → create order → sandbox pay → one credit → duplicate callback safe.
 
@@ -329,13 +329,13 @@ Minimum: `/health` OK → create order → sandbox pay → one credit → duplic
 
 ## 12. Troubleshooting
 
-See `docs/troubleshooting.md`.
+See `docs/external/troubleshooting.md`.
 
 ---
 
 ## Related docs
 
-- `docs/app-authentication.md` — request signing details
-- `docs/payment-events.md` — webhook contract
-- `docs/integrating-new-app.md` — onboard Siklusio, TEKAD, …
-- `docs/examples/generic-app-integration.md` — minimal app template
+- `docs/external/app-authentication.md` — request signing details
+- `docs/external/payment-events.md` — webhook contract
+- `docs/external/examples/generic-app-integration.md` — minimal app template
+- `docs/internal/integrating-new-app.md` — PayCore maintainer onboarding checklist

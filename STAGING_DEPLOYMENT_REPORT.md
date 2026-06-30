@@ -112,7 +112,7 @@ Expected body when healthy:
 
 **Belum dijalankan** — membutuhkan secrets staging, `PAYCORE_PUBLIC_BASE_URL`, custom domain (atau workers.dev + Duitku callback URL sementara), Narraza mock/staging webhook, dan pembayaran sandbox Duitku.
 
-Checklist: `docs/staging-e2e-checklist.md`.
+Checklist: `docs/internal/staging-e2e-checklist.md`.
 
 ## 11. Hasil duplicate callback test
 
@@ -133,7 +133,7 @@ Checklist: `docs/staging-e2e-checklist.md`.
 - `wrangler.toml` — staging D1 id, `paycore-dlq-staging`
 - `src/index.ts` — komentar + log `delivery_id` on CF retry
 - `tests/queue-ack-behavior.test.ts`
-- `docs/staging-e2e-checklist.md`
+- `docs/internal/staging-e2e-checklist.md`
 - `STAGING_DEPLOYMENT_REPORT.md`
 
 ## 15. Hal yang belum dilakukan
@@ -161,4 +161,4 @@ npm run lint       # OK
 1. `npx wrangler secret put ... --env staging` (semua key di §6).
 2. Set `PAYCORE_PUBLIC_BASE_URL` (secret atau `[env.staging.vars]` jika ditambahkan).
 3. Attach custom domain; update Duitku callback.
-4. Jalankan E2E per `docs/staging-e2e-checklist.md`.
+4. Jalankan E2E per `docs/internal/staging-e2e-checklist.md`.

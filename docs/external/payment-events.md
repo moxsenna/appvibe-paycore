@@ -54,7 +54,7 @@ There is **no** `payment_status` field inside `data` in the current implementati
 
 1. Read **raw body** as string before JSON parse (for signature).
 2. Verify `X-PayCore-Event-Timestamp` within ±5 minutes (recommended).
-3. Verify `X-PayCore-Event-Signature` (see `docs/integration-guide.md` §8).
+3. Verify `X-PayCore-Event-Signature` (see `docs/external/integration-guide.md` §8).
 4. Check **`event_id`** not processed (unique).
 5. Check **`order_id`** not fulfilled twice (unique business key).
 6. Apply fulfillment (credits, subscription, …) atomically.

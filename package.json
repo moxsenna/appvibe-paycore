@@ -14,7 +14,9 @@
     "db:migrate:staging": "wrangler d1 migrations apply paycore-staging --remote --env staging",
     "db:migrate:production": "wrangler d1 migrations apply paycore-production --remote --env production",
     "secrets:push:staging": "node scripts/push-staging-secrets.mjs",
+    "secrets:push:production": "node scripts/push-production-secrets.mjs",
     "duitku:sync-merchant:staging": "node scripts/sync-duitku-merchant-staging.mjs",
+    "duitku:sync-merchant:production": "node scripts/sync-duitku-merchant-production.mjs",
     "deploy:staging": "wrangler deploy --env staging",
     "deploy:production": "wrangler deploy --env production"
   },

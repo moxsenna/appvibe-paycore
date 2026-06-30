@@ -36,7 +36,7 @@ Does **not** call Duitku `transactionStatus` (deferred until staging E2E passes)
 
 - Callback: `POST /webhooks/duitku`  
 - MD5: `src/lib/md5.ts` + `duitkuCallbackSignatureMd5` / `duitkuRequestSignatureMd5`  
-- Docs: **`docs/duitku-integration.md`** (callback, signatures, staging checklist)
+- Docs: **`docs/internal/duitku-integration.md`** (callback, signatures, staging checklist)
 
 ## 5. Quality gates
 
@@ -70,4 +70,4 @@ After that: optional **provider inquiry reconciliation** for missed callbacks.
 
 - Confirm Duitku MD5 `amount` string format against live sandbox callbacks.  
 - Apply migration 004 before relying on claim RPCs in production.  
-- Configure Cloudflare Queues, secrets, and Supabase service role manually per `docs/runbook.md`.
+- Configure Cloudflare Queues, secrets, and Supabase service role manually per `docs/internal/runbook.md`.

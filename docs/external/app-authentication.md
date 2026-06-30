@@ -59,4 +59,4 @@ Max skew **5 minutes**. Outside window → HTTP 401.
 3. Sign with `PAYCORE_APP_SECRET`.
 4. Send headers above.
 
-Full TypeScript helpers: `docs/integration-guide.md` §6.
+Full TypeScript helpers: `docs/external/integration-guide.md` §6.

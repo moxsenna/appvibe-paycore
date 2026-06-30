@@ -46,25 +46,34 @@ export default {
     const log = createLogger({ service: 'paycore-cron' });
     const recon = new ReconciliationService(paycoreEnv.DB, log);
 
-    if (event.cron === '*/15 * * * *') {
-      const reconciledCount = await recon.reconcileMayarOrders(paycoreEnv);
-      log.info('15min_mayar_reconciliation', {
-        reconciled_count: reconciledCount,
-      });
-      return;
-    }
-
-    const result = await recon.runDaily(paycoreEnv);
-
-    log.info('daily_reconciliation', {
-      from: result.summary.from,
-      to: result.summary.to,
-      total_orders: result.summary.totalOrders,
-      paid_orders: result.summary.paidOrders,
-      fulfillment_failed: result.summary.fulfillmentFailed,
-      expired_orders: result.expiredOrderCount,
-      paid_undelivered: result.paidUndeliveredFound,
-      requeued_fulfillment: result.requeuedFulfillmentCount,
+    // 1. Selalu jalankan rekonsiliasi Mayar (15 menit)
+    const reconciledCount = await recon.reconcileMayarOrders(paycoreEnv);
+    log.info('15min_mayar_reconciliation', {
+      reconciled_count: reconciledCount,
     });
+
+    // 2. Jalankan rekonsiliasi harian jika cron spesifik '0 2 * * *' 
+    //    ATAU jika ini berjalan pada jam 02:00 dari cron 15 menitan.
+    const scheduledTime = new Date(event.scheduledTime);
+    const isDailyRun =
+      event.cron === '0 2 * * *' ||
+      (event.cron === '*/15 * * * *' &&
+        scheduledTime.getUTCHours() === 2 &&
+        scheduledTime.getUTCMinutes() === 0);
+
+    if (isDailyRun) {
+      const result = await recon.runDaily(paycoreEnv);
+
+      log.info('daily_reconciliation', {
+        from: result.summary.from,
+        to: result.summary.to,
+        total_orders: result.summary.totalOrders,
+        paid_orders: result.summary.paidOrders,
+        fulfillment_failed: result.summary.fulfillmentFailed,
+        expired_orders: result.expiredOrderCount,
+        paid_undelivered: result.paidUndeliveredFound,
+        requeued_fulfillment: result.requeuedFulfillmentCount,
+      });
+    }
   },
 };

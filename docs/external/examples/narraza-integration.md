@@ -87,6 +87,6 @@ https://pay-staging.appvibe.biz.id/webhooks/duitku
 
 ## Docs
 
-- `docs/integration-guide.md`
-- `docs/payment-events.md`
-- `docs/staging-e2e-checklist.md`
+- `docs/external/integration-guide.md`
+- `docs/external/payment-events.md`
+- `docs/internal/staging-e2e-checklist.md`

@@ -76,9 +76,9 @@ npx wrangler d1 execute paycore-staging --remote --env staging --command "SELECT
 
 ### Docs
 
-- Integration: `docs/integration-guide.md`
-- Narraza: `docs/examples/narraza-integration.md`
-- Issues: `docs/troubleshooting.md`
+- Integration: `docs/external/integration-guide.md`
+- Narraza: `docs/external/examples/narraza-integration.md`
+- Issues: `docs/external/troubleshooting.md`
 
 ---
 

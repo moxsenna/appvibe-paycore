@@ -14,7 +14,7 @@
 | `POST /api/webhooks/paycore` | ✅ |
 | `/payment/return` | ✅ |
 | `npm run build` (appvibe.web.id) | ✅ |
-| Docs `docs/examples/appvibe-vault-checkout-test.md` | ✅ |
+| Docs `docs/internal/examples/appvibe-vault-checkout-test.md` | ✅ |
 | PayCore tests 42/42 | ✅ |
 
 ## Menunggu Anda (operasional)

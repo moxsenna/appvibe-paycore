@@ -79,9 +79,9 @@ This plan intentionally covers one vertical MVP: project onboarding from dashboa
   - `tests/admin-webhook-ping.test.ts`
 
 - Modify docs:
-  - `docs/integrating-new-app.md`
-  - `docs/integration-guide.md`
-  - `docs/openapi.yaml`
+  - `docs/internal/integrating-new-app.md`
+  - `docs/external/integration-guide.md`
+  - `docs/external/openapi.yaml`
   - `prompt.md`
 
 ### Frontend
@@ -3098,14 +3098,14 @@ git commit -m "feat: build admin onboarding form"
 ### Task 16: Documentation And Prompt Alignment
 
 **Files:**
-- Modify: `docs/integrating-new-app.md`
-- Modify: `docs/integration-guide.md`
-- Modify: `docs/openapi.yaml`
+- Modify: `docs/internal/integrating-new-app.md`
+- Modify: `docs/external/integration-guide.md`
+- Modify: `docs/external/openapi.yaml`
 - Modify: `prompt.md`
 
 - [ ] **Step 1: Update new-app docs**
 
-In `docs/integrating-new-app.md`, add a dashboard-first section near the top:
+In `docs/internal/integrating-new-app.md`, add a dashboard-first section near the top:
 
 ```md
 ## Preferred path: PayCore Admin Dashboard
@@ -3127,7 +3127,7 @@ same payment provider configuration.
 
 - [ ] **Step 2: Update integration guide provider language**
 
-In `docs/integration-guide.md`, change Duitku-specific overview language to PayCore/provider language where it describes consumer app responsibilities:
+In `docs/external/integration-guide.md`, change Duitku-specific overview language to PayCore/provider language where it describes consumer app responsibilities:
 
 ```md
 Your app does not talk to Duitku, Mayar, Midtrans, or any payment provider directly
@@ -3139,7 +3139,7 @@ Keep concrete Duitku examples where they describe existing callback endpoints.
 
 - [ ] **Step 3: Update OpenAPI admin paths**
 
-In `docs/openapi.yaml`, add paths for:
+In `docs/external/openapi.yaml`, add paths for:
 
 ```yaml
   /admin/apps:
@@ -3210,7 +3210,7 @@ vitest exits 0
 - [ ] **Step 6: Commit docs**
 
 ```bash
-git add docs/integrating-new-app.md docs/integration-guide.md docs/openapi.yaml prompt.md
+git add docs/internal/integrating-new-app.md docs/external/integration-guide.md docs/external/openapi.yaml prompt.md
 git commit -m "docs: align onboarding docs with admin dashboard"
 ```
 

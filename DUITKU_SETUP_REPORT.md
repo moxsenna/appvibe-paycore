@@ -6,7 +6,7 @@
 |------|--------|
 | Callback verify | Memakai `DUITKU_MERCHANT_CODE` + `DUITKU_API_KEY` dari Worker (sama dengan create payment), bukan `DUMMY_MERCHANT` di D1 |
 | Merchant mismatch | Jika `merchantCode` di body callback ≠ secret → `401 invalid_signature` |
-| Docs operator | `D:/Coding/payment gateway/docs/duitku-sandbox-setup.md` |
+| Docs operator | `D:/Coding/paycore/docs/internal/duitku-sandbox-setup.md` |
 | Secrets push | `npm run secrets:push:staging` — skip baris `ENVIRONMENT=` |
 | Sync D1 audit | `npm run duitku:sync-merchant:staging` — update `merchant_profiles.merchant_code` dari `.staging.vars` |
 | Migration | `migrations/0003_duitku_merchant_code_note.sql` |
@@ -57,6 +57,6 @@ Satu transaksi test → cek order `paid` di D1 → satu kredit di Narraza.
 
 ## Referensi
 
-- `docs/duitku-integration.md`
-- `docs/duitku-sandbox-setup.md`
-- `docs/staging-e2e-checklist.md`
+- `docs/internal/duitku-integration.md`
+- `docs/internal/duitku-sandbox-setup.md`
+- `docs/internal/staging-e2e-checklist.md`

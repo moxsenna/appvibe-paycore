@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Updates merchant_profiles.merchant_code from DUITKU_MERCHANT_CODE in .staging.vars
+ * Updates merchant_profiles.merchant_code from DUITKU_MERCHANT_CODE in .production.vars
  */
 import { execSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -8,7 +8,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const varsPath = path.join(root, '.staging.vars');
+const varsPath = path.join(root, '.production.vars');
 
 function readMerchantCode() {
   if (process.env.DUITKU_MERCHANT_CODE?.trim()) {
@@ -24,7 +24,7 @@ function readMerchantCode() {
 
 const code = readMerchantCode();
 if (!code) {
-  console.error('Set DUITKU_MERCHANT_CODE in .staging.vars or environment');
+  console.error('Set DUITKU_MERCHANT_CODE in .production.vars or environment');
   process.exit(1);
 }
 
@@ -33,7 +33,7 @@ const sql = `UPDATE merchant_profiles SET merchant_code = '${escaped}', updated_
 
 try {
   execSync(
-    `npx wrangler d1 execute paycore-staging --remote --env staging --command "${sql}"`,
+    `npx wrangler d1 execute paycore-production --remote --env production --command "${sql}"`,
     { cwd: root, stdio: 'inherit' }
   );
   process.exit(0);

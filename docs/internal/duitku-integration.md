@@ -1,6 +1,6 @@
 # Duitku Integration - PayCore
 
-**Operator checklist (staging):** `docs/duitku-sandbox-setup.md`
+**Operator checklist (staging):** `docs/internal/duitku-sandbox-setup.md`
 
 PayCore uses one Duitku callback domain for all apps. AppVibe Vault, Narraza, and future products must never expose their own Duitku callback URL.
 
@@ -96,5 +96,5 @@ https://pay.appvibe.biz.id/webhooks/duitku
 ## References
 
 - Duitku POP official docs: `https://docs.duitku.com/pop/en/`
-- `docs/runbook.md` - fulfillment retry and manual review.
-- `docs/architecture.md` - payment vs fulfillment vs delivery status.
+- `docs/internal/runbook.md` - fulfillment retry and manual review.
+- `docs/internal/architecture.md` - payment vs fulfillment vs delivery status.

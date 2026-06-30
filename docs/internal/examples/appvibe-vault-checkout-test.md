@@ -59,5 +59,5 @@ Butuh `.dev.vars` dengan `PAYCORE_*`. Vite `npm run dev` tidak menjalankan `/api
 
 ## 5. Dokumen terkait
 
-- `D:/Coding/paycore/docs/duitku-sandbox-setup.md`
+- `D:/Coding/paycore/docs/internal/duitku-sandbox-setup.md`
 - `D:/Coding/paycore/prompt.md`

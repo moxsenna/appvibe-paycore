@@ -9,7 +9,7 @@ Path lokal (Windows):  D:/Coding/paycore
 GitHub:                https://github.com/moxsenna/appvibe-paycore
 Prompt ini:            D:/Coding/paycore/prompt.md
 README PayCore:        D:/Coding/paycore/README.md
-OpenAPI:               D:/Coding/paycore/docs/openapi.yaml
+OpenAPI:               D:/Coding/paycore/docs/external/openapi.yaml
 ```
 
 **Aturan path untuk agen:**
@@ -121,19 +121,22 @@ Default aman: bila environment atau credential tidak lengkap, payment harus nona
 
 # 4. Dokumentasi PayCore yang Harus Dibaca
 
-## Lokasi tetap di disk (baca file ini dulu)
+## Lokasi tetap di disk untuk agen eksternal (baca file ini dulu)
 
 ```text
-D:/Coding/paycore/docs/integration-guide.md              ← MULAI DI SINI
-D:/Coding/paycore/docs/integrating-new-app.md
-D:/Coding/paycore/docs/app-authentication.md
-D:/Coding/paycore/docs/payment-events.md
-D:/Coding/paycore/docs/troubleshooting.md
-D:/Coding/paycore/docs/staging-e2e-checklist.md
-D:/Coding/paycore/docs/openapi.yaml
-D:/Coding/paycore/docs/examples/generic-app-integration.md
-D:/Coding/paycore/docs/examples/narraza-integration.md   ← jika app = Narraza
+D:/Coding/paycore/docs/README.md
+D:/Coding/paycore/docs/external/integration-guide.md              ← MULAI DI SINI
+D:/Coding/paycore/docs/external/app-authentication.md
+D:/Coding/paycore/docs/external/payment-events.md
+D:/Coding/paycore/docs/external/troubleshooting.md
+D:/Coding/paycore/docs/external/openapi.yaml
+D:/Coding/paycore/docs/external/examples/generic-app-integration.md
+D:/Coding/paycore/docs/external/examples/narraza-integration.md   ← jika app = Narraza
 ```
+
+Dokumen `D:/Coding/paycore/docs/internal/...` hanya untuk agen internal PayCore.
+Agen repo aplikasi lain tidak perlu membaca atau mengubah dokumen internal,
+kecuali maintainer PayCore secara eksplisit menugaskannya.
 
 ## Source of truth kode PayCore
 
@@ -154,7 +157,7 @@ Gunakan dokumentasi dan implementasi PayCore aktual sebagai source of truth.
 
 Jika folder `D:/Coding/paycore` tidak ada, clone dari GitHub lalu baca path di atas. Jika benar-benar tidak bisa, gunakan kontrak §8–10 prompt ini — jangan mengarang format yang bertentangan dengan file PayCore.
 
-**Header event PayCore → aplikasi:** `X-PayCore-Event-Timestamp`, `X-PayCore-Event-Signature`; `event_id` / `event_type` di body JSON. Detail: `D:/Coding/paycore/docs/payment-events.md`.
+**Header event PayCore → aplikasi:** `X-PayCore-Event-Timestamp`, `X-PayCore-Event-Signature`; `event_id` / `event_type` di body JSON. Detail: `D:/Coding/paycore/docs/external/payment-events.md`.
 
 ---
 

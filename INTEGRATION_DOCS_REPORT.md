@@ -4,14 +4,14 @@
 
 | File | Action |
 |------|--------|
-| `docs/integration-guide.md` | Created (main guide) |
-| `docs/integrating-new-app.md` | Created |
-| `docs/app-authentication.md` | Created |
-| `docs/payment-events.md` | Created |
-| `docs/troubleshooting.md` | Created |
-| `docs/staging-e2e-checklist.md` | Updated (owner + developer sections) |
-| `docs/examples/narraza-integration.md` | Created |
-| `docs/examples/generic-app-integration.md` | Created |
+| `docs/external/integration-guide.md` | Created (main guide) |
+| `docs/internal/integrating-new-app.md` | Created |
+| `docs/external/app-authentication.md` | Created |
+| `docs/external/payment-events.md` | Created |
+| `docs/external/troubleshooting.md` | Created |
+| `docs/internal/staging-e2e-checklist.md` | Updated (owner + developer sections) |
+| `docs/external/examples/narraza-integration.md` | Created |
+| `docs/external/examples/generic-app-integration.md` | Created |
 | `README.md` | Link to integration guide |
 | `INTEGRATION_DOCS_REPORT.md` | This report |
 
@@ -60,5 +60,5 @@ npm run lint       — OK
 
 - Live E2E sandbox execution (documentation only).
 - Production integration.
-- Auto-generated OpenAPI sync (existing `docs/openapi.yaml` not updated in this pass).
+- Auto-generated OpenAPI sync (existing `docs/external/openapi.yaml` not updated in this pass).
 - Multi-app `resolveAppSecret` code (noted in integrating-new-app.md for maintainers).

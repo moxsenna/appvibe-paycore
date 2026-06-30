@@ -58,5 +58,5 @@ Today `resolveAppSecret` / `resolveWebhookSecret` in `src/config/env.ts` are **N
 
 ## References
 
-- `docs/integration-guide.md`
-- `docs/examples/generic-app-integration.md`
+- `docs/external/integration-guide.md`
+- `docs/external/examples/generic-app-integration.md`

@@ -107,7 +107,7 @@ npx wrangler tail appvibe-paycore-staging --env staging
 | `invalid_signature` | API key tidak sama dengan yang dipakai Duitku | Rotate/sync key |
 | Paid tapi tidak fulfill | Webhook app gagal | Cek Narraza endpoint + secret |
 
-Detail: `docs/troubleshooting.md`, `docs/duitku-integration.md`.
+Detail: `docs/external/troubleshooting.md`, `docs/internal/duitku-integration.md`.
 
 ## 10. Production
 

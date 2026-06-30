@@ -28,8 +28,8 @@ npm run lint
 
 ## Staging (manual)
 
-**Duitku sandbox:** `docs/duitku-sandbox-setup.md`
-- Vault checkout test (no Narraza): `docs/examples/appvibe-vault-checkout-test.md` + `D:/Coding/appvibe.biz.id/checkout/`
+**Duitku sandbox:** `docs/internal/duitku-sandbox-setup.md`
+- Vault checkout test (no Narraza): `docs/internal/examples/appvibe-vault-checkout-test.md` + `D:/Coding/appvibe.biz.id/checkout/`
 
 1. Create D1 database `paycore-staging` in Cloudflare dashboard.
 2. Set `database_id` in `wrangler.toml` under `[env.staging.d1_databases]`.
@@ -39,11 +39,12 @@ npm run lint
 Do **not** run production migrations/deploy from CI without approval.
 
 ## Docs
-- `docs/integration-guide.md` — consumer app integration
-- `docs/openapi.yaml` — API reference
+- `docs/README.md` - pilih dokumen berdasarkan pembaca
+- `docs/external/integration-guide.md` — consumer app integration
+- `docs/external/openapi.yaml` — API reference
 - `D:/Coding/paycore/prompt.md` - salin ke agen di repo aplikasi lain bila perlu
-- `docs/architecture.md`
-- `docs/deployment.md`
-- `docs/runbook.md`
-- `docs/duitku-integration.md`
+- `docs/internal/architecture.md`
+- `docs/internal/deployment.md`
+- `docs/internal/runbook.md`
+- `docs/internal/duitku-integration.md`
 - `IMPLEMENTATION_REPORT.md`

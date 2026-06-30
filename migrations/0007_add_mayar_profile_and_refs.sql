@@ -35,7 +35,3 @@ INSERT INTO merchant_profiles (
   1719600000000
 );
 
--- Note: we update apps to use the Mayar profile if they were using Duitku
-UPDATE apps
-SET default_merchant_profile_id = 'mp_mayar_main'
-WHERE id IN ('app_narraza', 'app_appvibe_vault');

@@ -77,6 +77,6 @@ Implementations must match `src/lib/crypto.ts` in PayCore repo.
 
 ## 8. Further reading
 
-- `docs/integration-guide.md` — full guide
-- `docs/integrating-new-app.md` — onboarding checklist
-- `docs/troubleshooting.md`
+- `docs/external/integration-guide.md` — full guide
+- `docs/internal/integrating-new-app.md` — PayCore maintainer onboarding checklist
+- `docs/external/troubleshooting.md`
